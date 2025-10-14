@@ -37,6 +37,7 @@
             display: flex;
             flex-direction: column;
             transition: all 0.3s ease;
+            overflow: visible;
         }
         
         .floating-chat.minimized {
@@ -44,32 +45,89 @@
             overflow: hidden;
         }
         
+        /* Imagen de Soldy en la esquina inferior derecha del chat flotante */
+        .soldy-header-image {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 100px;
+            height: 100px;
+            z-index: 999;
+            animation: popIn 0.5s ease-out;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        
+        .soldy-header-image:hover {
+            transform: scale(1.1);
+        }
+        
+        .soldy-header-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+        }
+        
+        @keyframes popIn {
+            0% {
+                opacity: 0;
+                transform: scale(0.5) translateY(20px);
+            }
+            60% {
+                transform: scale(1.1) translateY(0);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+        
         .floating-chat-toggle {
             position: fixed;
             bottom: 20px;
             right: 20px;
-            width: 60px;
-            height: 60px;
-            background: #1e40af;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            width: 120px;
+            height: 120px;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
             z-index: 1001;
             transition: all 0.3s ease;
+            animation: float 3s ease-in-out infinite;
         }
         
         .floating-chat-toggle:hover {
-            transform: scale(1.1);
-            background: #1d4ed8;
+            animation: floatHover 2s ease-in-out infinite;
         }
         
-        .floating-chat-toggle svg {
-            width: 24px;
-            height: 24px;
-            color: white;
+        .floating-chat-toggle img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 4px 12px rgba(102, 126, 234, 0.3));
+            transition: transform 0.5s ease-out, filter 0.5s ease-out;
+        }
+        
+        .floating-chat-toggle:hover img {
+            transform: scale(1.2);
+            filter: drop-shadow(0 8px 24px rgba(102, 126, 234, 0.6));
+        }
+        
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0px);
+            }
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+        
+        @keyframes floatHover {
+            0%, 100% {
+                transform: translateY(-8px);
+            }
+            50% {
+                transform: translateY(-12px);
+            }
         }
         
         .floating-chat-header {
@@ -87,6 +145,7 @@
             flex: 1;
             overflow-y: auto;
             padding: 16px;
+            padding-top: 50px;
             display: flex;
             flex-direction: column;
             gap: 12px;
@@ -157,9 +216,12 @@
 
     <!-- Botón toggle del chat flotante -->
     <div id="floating-chat-toggle" class="floating-chat-toggle">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
-        </svg>
+        <img src="../soldy.png" alt="Soldy - Asistente Virtual">
+    </div>
+
+    <!-- Imagen de Soldy (aparece cuando se abre el chat flotante) -->
+    <div class="soldy-header-image" id="soldy-floating-image" style="display: none;" title="Cerrar chat">
+        <img src="../soldy_head.png" alt="Soldy">
     </div>
 
     <!-- Chat flotante -->
@@ -389,11 +451,17 @@
             const form = document.getElementById('floating-chat-form');
 
             // Toggle del chat flotante
+            const soldyFloatingImage = document.getElementById('soldy-floating-image');
+            
             toggleBtn.addEventListener('click', () => {
                 floatingChatVisible = !floatingChatVisible;
                 if (floatingChatVisible) {
                     floatingChat.style.display = 'flex';
                     toggleBtn.style.display = 'none';
+                    // Mostrar imagen de Soldy al abrir el chat
+                    if (soldyFloatingImage) {
+                        soldyFloatingImage.style.display = 'block';
+                    }
                     // Mensaje de bienvenida
                     if (document.getElementById('floating-chat-body').children.length === 0) {
                         appendFloatingMessage('system', '¡Hola! Soy tu asistente de IA. ¿En qué puedo ayudarte hoy?');
@@ -401,8 +469,22 @@
                 } else {
                     floatingChat.style.display = 'none';
                     toggleBtn.style.display = 'flex';
+                    // Ocultar imagen de Soldy al cerrar el chat
+                    if (soldyFloatingImage) {
+                        soldyFloatingImage.style.display = 'none';
+                    }
                 }
             });
+            
+            // Cerrar chat al hacer clic en la imagen de Soldy
+            if (soldyFloatingImage) {
+                soldyFloatingImage.addEventListener('click', () => {
+                    floatingChatVisible = false;
+                    floatingChat.style.display = 'none';
+                    toggleBtn.style.display = 'flex';
+                    soldyFloatingImage.style.display = 'none';
+                });
+            }
 
             // Envío de mensajes
             form.addEventListener('submit', async (e) => {

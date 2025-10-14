@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PEISA - SOLDASUR S.A - DEMO STANDALONE</title>
+    <title>SOLDASUR S.A - DEMO STANDALONE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Banner demo */
@@ -330,6 +330,49 @@
             }
         }
         
+        /* Imagen de Soldy en la esquina inferior derecha del chat */
+        .soldy-header-image {
+            position: fixed;
+            bottom: 20px;
+            right: 24px;
+            width: 100px;
+            height: 100px;
+            z-index: 1000;
+            animation: popIn 0.5s ease-out;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        
+        .soldy-header-image:hover {
+            transform: scale(1.1);
+        }
+        
+        .soldy-header-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+        }
+        
+        @keyframes popIn {
+            0% {
+                opacity: 0;
+                transform: scale(0.5) translateY(20px);
+            }
+            60% {
+                transform: scale(1.1) translateY(0);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+        
+        /* Ajustar posición del chat para que no tape a Soldy */
+        .chat-container-wrapper {
+            bottom: 100px !important;
+        }
+        
         /* Botones del header */
         #back-button:hover,
         .chat-container-wrapper button:hover {
@@ -348,6 +391,13 @@
             .chat-button {
                 width: 90px;
                 height: 90px;
+                bottom: 20px;
+                right: 20px;
+            }
+            
+            .soldy-header-image {
+                width: 80px;
+                height: 80px;
                 bottom: 20px;
                 right: 20px;
             }
@@ -379,7 +429,7 @@
     <div class="container mx-auto px-4 py-12">
         <div class="max-w-4xl mx-auto">
             <div class="bg-white rounded-lg shadow-lg p-8 mb-8">
-                <h1 class="text-4xl font-bold text-blue-900 mb-4">Bienvenido a PEISA - SOLDASUR</h1>
+                <h1 class="text-4xl font-bold text-blue-900 mb-4">Bienvenido a SOLDASUR</h1>
                 <p class="text-lg text-gray-700 mb-6">
                     Somos líderes en sistemas de calefacción, agua caliente, climatización de piscinas y energías renovables. 
                     Con más de 30 años de experiencia climatizando hogares en todo el país.
@@ -456,6 +506,11 @@
         <img src="../soldy.png" alt="Soldy - Asistente Virtual">
     </div>
 
+    <!-- Imagen de Soldy (aparece cuando se abre el chat) -->
+    <div class="soldy-header-image" id="soldy-chat-image" style="display: none;" onclick="toggleChat()" title="Cerrar chat">
+        <img src="../soldy_head.png" alt="Soldy">
+    </div>
+
     <!-- Contenedor del chat flotante -->
     <div class="chat-container-wrapper" id="chat-widget">
         <div class="bg-white rounded-lg shadow-2xl overflow-hidden flex flex-col h-full">
@@ -463,7 +518,7 @@
             <div class="bg-blue-800 text-white p-4 relative">
                 <div class="flex justify-between items-center">
                     <div class="flex-1">
-                        <h1 class="text-lg font-bold">PEISA - SOLDASUR S.A</h1>
+                        <h1 class="text-lg font-bold">SOLDASUR S.A</h1>
                         <p class="text-xs opacity-80">Asistente Inteligente Unificado</p>
                     </div>
                     
@@ -493,7 +548,7 @@
             </div>
             
             <!-- Chat container -->
-            <div id="chat-container" class="flex-1 p-4 pb-6 overflow-y-auto space-y-3"></div>
+            <div id="chat-container" class="flex-1 p-4 pb-6 overflow-y-auto space-y-3" style="padding-top: 50px;"></div>
             
             <!-- Input area -->
             <div id="input-area" class="p-4 border-t border-gray-200 bg-gray-50 mt-auto"></div>
@@ -576,12 +631,17 @@
             const chatWidget = document.getElementById('chat-widget');
             const chatButton = document.getElementById('chat-toggle-btn');
             const soldyMessage = document.getElementById('soldy-message');
+            const soldyChatImage = document.getElementById('soldy-chat-image');
             
             chatIsOpen = !chatIsOpen;
             
             if (chatIsOpen) {
                 chatWidget.classList.add('active');
                 chatButton.style.display = 'none';
+                // Mostrar imagen de Soldy al abrir el chat
+                if (soldyChatImage) {
+                    soldyChatImage.style.display = 'block';
+                }
                 // Ocultar mensaje de bienvenida al abrir
                 if (soldyMessage) {
                     soldyMessage.classList.add('hidden');
@@ -593,6 +653,10 @@
             } else {
                 chatWidget.classList.remove('active');
                 chatButton.style.display = 'block';
+                // Ocultar imagen de Soldy al cerrar el chat
+                if (soldyChatImage) {
+                    soldyChatImage.style.display = 'none';
+                }
                 // Mostrar mensaje de bienvenida al cerrar
                 if (soldyMessage) {
                     soldyMessage.classList.remove('hidden');
@@ -684,7 +748,7 @@
             userInputs = {};
             
             // Modo híbrido fijo - siempre muestra las opciones iniciales
-            appendMessage('system', '¡Hola! Soy tu asistente inteligente de PEISA - SOLDASUR. Puedo ayudarte de diferentes formas. ¿Qué necesitas?');
+            appendMessage('system', '¡Hola! Soy <strong>Soldy</strong> tu asistente inteligente de SOLDASUR. Puedo ayudarte de diferentes formas. ¿Qué necesitas?');
             renderOptions([' Guíame en un cálculo', ' Tengo una pregunta', ' Buscar productos'], false);
         }
         
@@ -793,21 +857,29 @@
 
         /* Renderizar productos */
         function renderProducts(products) {
+            console.log('renderProducts llamado con:', products.length, 'productos');
             const container = document.createElement('div');
             container.className = 'mt-3 space-y-2';
             
-            products.slice(0, 5).forEach(product => {
+            const productsToShow = products.slice(0, 10); // Mostrar hasta 10 productos
+            console.log('Mostrando', productsToShow.length, 'productos');
+            
+            productsToShow.forEach((product, index) => {
                 const card = document.createElement('div');
                 card.className = 'product-card fade-in cursor-pointer';
+                card.style.animationDelay = `${index * 0.05}s`;
                 card.onclick = () => window.open(product.url, '_blank');
                 card.innerHTML = `
                     <div class="flex justify-between items-start">
                         <div class="flex-1">
                             <div class="font-semibold text-blue-800">${product.model || 'N/A'}</div>
-                            <div class="text-sm text-gray-600">${product.category || product.family || ''}</div>
+                            <div class="text-sm text-gray-600">
+                                <span class="inline-block px-2 py-0.5 bg-blue-50 rounded text-xs mr-1">${product.family || ''}</span>
+                                ${product.category ? `<span class="text-xs">${product.category}</span>` : ''}
+                            </div>
                             ${product.description ? `<div class="text-xs text-gray-500 mt-1">${product.description}</div>` : ''}
                         </div>
-                        <div class="ml-2">
+                        <div class="ml-2 flex-shrink-0">
                             <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
                             </svg>
@@ -817,7 +889,17 @@
                 container.appendChild(card);
             });
             
-            document.getElementById('chat-container').appendChild(container);
+            // Agregar contador si hay más productos
+            if (products.length > productsToShow.length) {
+                const moreInfo = document.createElement('div');
+                moreInfo.className = 'text-center text-sm text-gray-500 mt-2';
+                moreInfo.innerHTML = `<em>Mostrando ${productsToShow.length} de ${products.length} productos</em>`;
+                container.appendChild(moreInfo);
+            }
+            
+            const chatContainer = document.getElementById('chat-container');
+            console.log('Agregando productos al contenedor:', chatContainer);
+            chatContainer.appendChild(container);
             scrollToBottom();
         }
 
@@ -863,6 +945,48 @@
         function handleOptionClick(option) {
             appendMessage('user', option);
             
+            // Manejar selección de categorías de productos PRIMERO (antes de verificar conversationStep)
+            if (['Calderas', 'Radiadores', 'Termotanques', 'Calefones', 'Toalleros', 'Climatizadores', 'Termostatos'].includes(option)) {
+                console.log('Categoría seleccionada:', option);
+                const categoryProducts = peisaProducts.filter(p => p.family === option);
+                console.log('Productos encontrados:', categoryProducts.length, categoryProducts);
+                
+                if (categoryProducts.length > 0) {
+                    appendMessage('system', `📦 Aquí están nuestros <strong>${categoryProducts.length} productos de ${option}</strong>:`);
+                    setTimeout(() => {
+                        renderProducts(categoryProducts);
+                        appendMessage('system', `💡 <em>Haz clic en cualquier producto para ver más detalles en nuestra web.</em>`);
+                        renderOptions(['🤖 Hacer un cálculo', '💬 Hacer una pregunta', '📦 Ver otras categorías'], false);
+                    }, 500);
+                } else {
+                    appendMessage('system', `Lo siento, no encontré productos en la categoría ${option}. ¿Te gustaría ver otra categoría?`);
+                    renderOptions(['📦 Ver otras categorías', '🤖 Hacer un cálculo', '💬 Hacer una pregunta'], false);
+                }
+                return;
+            }
+            
+            // Opciones de "Ver todos" y navegación de categorías
+            if (option === 'Ver todos') {
+                appendMessage('system', '📦 Aquí está una selección de nuestros <strong>productos destacados</strong>:');
+                setTimeout(() => {
+                    // Mostrar una mezcla de productos
+                    const featured = [
+                        ...peisaProducts.filter(p => p.family === 'Calderas').slice(0, 2),
+                        ...peisaProducts.filter(p => p.family === 'Radiadores').slice(0, 2),
+                        ...peisaProducts.filter(p => p.family === 'Termotanques').slice(0, 1),
+                        ...peisaProducts.filter(p => p.family === 'Climatizadores').slice(0, 1)
+                    ];
+                    renderProducts(featured);
+                    appendMessage('system', `💡 <em>Tenemos ${peisaProducts.length} productos en total. Haz clic en cualquiera para ver más detalles.</em>`);
+                    renderOptions(['🤖 Hacer un cálculo', '💬 Hacer una pregunta', '📦 Ver por categoría'], false);
+                }, 500);
+                return;
+            } else if (option === '📦 Ver otras categorías' || option === '📦 Ver por categoría') {
+                appendMessage('system', '📦 ¿Qué tipo de producto te interesa?');
+                renderOptions(['Calderas', 'Radiadores', 'Termotanques', 'Calefones', 'Toalleros', 'Climatizadores', 'Ver todos'], false);
+                return;
+            }
+            
             // Opciones iniciales del modo híbrido
             if (conversationStep === 0) {
                 if (option.includes('Guíame') || option.includes('cálculo')) {
@@ -879,36 +1003,8 @@
                     // Mostrar catálogo con categorías
                     showBackButton(); // Mostrar botón de volver
                     appendMessage('system', '📦 ¿Qué tipo de producto te interesa?');
-                    renderOptions(['Calderas', 'Radiadores', 'Termotanques', 'Calefones', 'Toalleros', 'Ver todos'], false);
+                    renderOptions(['Calderas', 'Radiadores', 'Termotanques', 'Calefones', 'Toalleros', 'Climatizadores', 'Ver todos'], false);
                 }
-                return;
-            }
-            
-            // Manejar selección de categorías de productos
-            if (['Calderas', 'Radiadores', 'Termotanques', 'Calefones', 'Toalleros', 'Climatizadores'].includes(option)) {
-                appendMessage('system', `Aquí están nuestros productos de ${option}:`);
-                setTimeout(() => {
-                    const categoryProducts = peisaProducts.filter(p => p.family === option);
-                    renderProducts(categoryProducts);
-                    renderOptions(['🤖 Hacer un cálculo', '💬 Hacer una pregunta', '📦 Ver otras categorías'], false);
-                }, 500);
-                return;
-            } else if (option === 'Ver todos') {
-                appendMessage('system', 'Aquí está una selección de nuestros productos destacados:');
-                setTimeout(() => {
-                    // Mostrar una mezcla de productos
-                    const featured = [
-                        ...peisaProducts.filter(p => p.family === 'Calderas').slice(0, 2),
-                        ...peisaProducts.filter(p => p.family === 'Radiadores').slice(0, 2),
-                        ...peisaProducts.filter(p => p.family === 'Termotanques').slice(0, 1)
-                    ];
-                    renderProducts(featured);
-                    renderOptions(['🤖 Hacer un cálculo', '💬 Hacer una pregunta', '📦 Ver por categoría'], false);
-                }, 500);
-                return;
-            } else if (option === '📦 Ver otras categorías' || option === '📦 Ver por categoría') {
-                appendMessage('system', '📦 ¿Qué tipo de producto te interesa?');
-                renderOptions(['Calderas', 'Radiadores', 'Termotanques', 'Calefones', 'Toalleros', 'Ver todos'], false);
                 return;
             }
             
