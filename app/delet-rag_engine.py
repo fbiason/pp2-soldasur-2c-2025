@@ -5,9 +5,10 @@ Este módulo contiene el motor RAG (Retrieval-Augmented Generation)
 con capacidad de usar el contexto del sistema experto para mejorar respuestas.
 """
 
-from typing import Dict, Any, List, Optional
+"""from typing import Dict, Any, List, Optional
 import sys
 from pathlib import Path
+"""
 
 # Importar módulos existentes
 sys.path.append(str(Path(__file__).parent.parent))
