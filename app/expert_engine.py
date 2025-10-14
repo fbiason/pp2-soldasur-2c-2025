@@ -1,0 +1,464 @@
+"""
+expert_engine.py - Motor del Sistema Experto con Enriquecimiento RAG
+
+Este módulo contiene el motor del sistema experto basado en reglas,
+con capacidad de enriquecimiento mediante el sistema RAG.
+"""
+
+from typing import Dict, Any, List, Optional
+import json
+from math import ceil
+from bisect import bisect_left
+from .models import RADIATOR_MODELS
+
+
+class ExpertEngine:
+    """
+    Motor del sistema experto con capacidad de enriquecimiento RAG.
+    Maneja el flujo conversacional guiado basado en la base de conocimiento.
+    """
+    
+    def __init__(self, knowledge_base_path: str = "app/peisa_advisor_knowledge_base.json"):
+        """
+        Inicializa el motor experto.
+        
+        Args:
+            knowledge_base_path: Ruta al archivo JSON de la base de conocimiento
+        """
+        self.knowledge_base = []
+        self.rag_engine = None  # Se inyectará después
+        self.rag_enrichment_enabled = True
+        
+        # Cargar base de conocimiento
+        try:
+            with open(knowledge_base_path, "r", encoding="utf-8") as f:
+                self.knowledge_base = json.load(f)
+        except FileNotFoundError:
+            print(f"Advertencia: No se encontró {knowledge_base_path}")
+    
+    def set_rag_engine(self, rag_engine):
+        """Inyecta el motor RAG para enriquecimiento"""
+        self.rag_engine = rag_engine
+    
+    def get_node_by_id(self, node_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Busca un nodo por su ID en la base de conocimiento.
+        
+        Args:
+            node_id: ID del nodo a buscar
+            
+        Returns:
+            Diccionario con los datos del nodo o None si no se encuentra
+        """
+        for node in self.knowledge_base:
+            if node.get('id') == node_id:
+                return node
+        return None
+    
+    async def process(self, conversation_id: str, expert_state: Dict[str, Any],
+                     option_index: Optional[int] = None,
+                     input_values: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Procesa la interacción del usuario en el flujo experto.
+        
+        Args:
+            conversation_id: ID de la conversación
+            expert_state: Estado actual del experto (current_node, variables)
+            option_index: Índice de opción seleccionada
+            input_values: Valores de entrada del usuario
+            
+        Returns:
+            Diccionario con la respuesta y el siguiente estado
+        """
+        current_node_id = expert_state.get('current_node', 'inicio')
+        context = expert_state.get('variables', {})
+        
+        node = self.get_node_by_id(current_node_id)
+        if not node:
+            return {
+                'error': 'Nodo no encontrado',
+                'node_id': current_node_id
+            }
+        
+        # Procesar entrada del usuario si existe
+        if option_index is not None or input_values:
+            result = self._process_user_input(node, context, option_index, input_values)
+            if result.get('error'):
+                return result
+            
+            # Avanzar al siguiente nodo
+            next_node_id = result.get('next_node')
+            if next_node_id:
+                expert_state['current_node'] = next_node_id
+                node = self.get_node_by_id(next_node_id)
+        
+        # Obtener el mensaje del nodo actual
+        return await self._get_node_message(node, context, expert_state)
+    
+    def _process_user_input(self, node: Dict[str, Any], context: Dict[str, Any],
+                           option_index: Optional[int], 
+                           input_values: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        """Procesa la entrada del usuario según el tipo de nodo"""
+        
+        # Nodo de entrada de usuario (numérico)
+        if node.get('tipo') == 'entrada_usuario':
+            try:
+                if 'variable' in node:
+                    value = str(input_values.get('value', '')).replace(',', '.')
+                    context[node['variable']] = float(value)
+                elif 'variables' in node:
+                    for var in node['variables']:
+                        value = str(input_values.get(var, '')).replace(',', '.')
+                        context[var] = float(value)
+                
+                return {'next_node': node['siguiente']}
+            
+            except (ValueError, KeyError) as e:
+                return {
+                    'error': 'Por favor ingrese valores numéricos válidos (ej: 4.5, 3.75)',
+                    'node_id': node['id']
+                }
+        
+        # Nodo con opciones
+        elif 'opciones' in node and option_index is not None:
+            if 0 <= option_index < len(node['opciones']):
+                selected = node['opciones'][option_index]
+                # Guardar el valor usando el ID del nodo como clave
+                context[node['id']] = selected.get('valor', selected['texto'])
+                # Guardar también el texto para mostrar
+                context[f"{node['id']}_texto"] = selected['texto']
+                
+                return {'next_node': selected['siguiente']}
+            else:
+                return {
+                    'error': 'Opción inválida',
+                    'node_id': node['id']
+                }
+        
+        return {}
+    
+    async def _get_node_message(self, node: Dict[str, Any], context: Dict[str, Any],
+                               expert_state: Dict[str, Any]) -> Dict[str, Any]:
+        """Obtiene el mensaje a mostrar para el nodo actual"""
+        
+        # Nodo de cálculo: ejecutar y avanzar automáticamente
+        if node.get('tipo') == 'calculo':
+            self._perform_calculation(node, context)
+            expert_state['current_node'] = node['siguiente']
+            next_node = self.get_node_by_id(node['siguiente'])
+            return await self._get_node_message(next_node, context, expert_state)
+        
+        # Nodo con pregunta
+        elif 'pregunta' in node:
+            response = {
+                'type': 'question',
+                'node_id': node['id'],
+                'text': self._replace_variables(node['pregunta'], context),
+                'variables': context
+            }
+            
+            # Agregar opciones si existen
+            if 'opciones' in node:
+                response['options'] = [opt['texto'] for opt in node['opciones']]
+            
+            # Nodo de entrada de usuario
+            elif node.get('tipo') == 'entrada_usuario':
+                if 'variable' in node:
+                    response['input_type'] = 'number'
+                    response['input_label'] = 'Ingrese el valor'
+                elif 'variables' in node:
+                    response['input_type'] = 'multiple'
+                    response['inputs'] = [
+                        {'name': var, 'label': f'Ingrese {var} (metros)', 'type': 'number'}
+                        for var in node['variables']
+                    ]
+            
+            # Enriquecimiento RAG si está habilitado
+            if self.rag_enrichment_enabled and node.get('enrich_with_rag') and self.rag_engine:
+                enrichment = await self._enrich_with_rag(node, context)
+                if enrichment:
+                    response['additional_info'] = enrichment
+            
+            return response
+        
+        # Nodo de respuesta (final o intermedio)
+        elif node.get('tipo') == 'respuesta':
+            response = {
+                'type': 'response',
+                'node_id': node['id'],
+                'text': self._replace_variables(node['texto'], context),
+                'variables': context
+            }
+            
+            # Si tiene opciones, no es final
+            if 'opciones' in node:
+                response['options'] = [opt['texto'] for opt in node['opciones']]
+                response['is_final'] = False
+            else:
+                response['is_final'] = True
+            
+            return response
+        
+        # Nodo con opciones dinámicas
+        elif node.get('tipo') == 'opciones_dinamicas':
+            if 'modelos_recomendados' in context:
+                models = context['modelos_recomendados']
+                return {
+                    'type': 'question',
+                    'node_id': node['id'],
+                    'text': node['pregunta'],
+                    'options': [
+                        f"{model['name']} (Potencia: {model['potencia']*model['coeficiente']:.0f} kcal/h)"
+                        for model in models
+                    ],
+                    'variables': context
+                }
+        
+        return {
+            'error': 'Tipo de nodo no reconocido',
+            'node_id': node['id']
+        }
+    
+    async def _enrich_with_rag(self, node: Dict[str, Any], 
+                              context: Dict[str, Any]) -> Optional[str]:
+        """
+        Enriquece la respuesta del nodo con información del RAG.
+        
+        Args:
+            node: Nodo actual
+            context: Contexto de variables
+            
+        Returns:
+            Información adicional del RAG o None
+        """
+        if not self.rag_engine:
+            return None
+        
+        try:
+            # Construir query para el RAG basado en el nodo
+            query = node.get('rag_query', node.get('pregunta', ''))
+            
+            # Obtener información relevante del RAG
+            rag_result = await self.rag_engine.get_context(
+                query=query,
+                filters=node.get('rag_filters', {})
+            )
+            
+            return rag_result.get('summary', '')
+        
+        except Exception as e:
+            print(f"Error en enriquecimiento RAG: {e}")
+            return None
+    
+    async def suggest_next_step(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Sugiere el siguiente paso basado en el contexto actual.
+        Útil para el modo híbrido.
+        
+        Args:
+            context: Contexto de variables del experto
+            
+        Returns:
+            Sugerencia de siguiente paso
+        """
+        # Analizar qué información ya tenemos
+        has_area = 'superficie' in context or any('m2' in str(k).lower() for k in context.keys())
+        has_location = 'zona' in context or 'ubicacion' in context
+        has_type = 'tipo_calefaccion' in context or 'inicio' in context
+        
+        # Sugerir siguiente paso
+        if not has_type:
+            return {
+                'suggestion': '¿Qué tipo de calefacción deseas calcular?',
+                'options': ['Piso radiante', 'Radiadores', 'Calderas']
+            }
+        elif not has_area:
+            return {
+                'suggestion': '¿Cuál es la superficie a calefaccionar?',
+                'input_type': 'number',
+                'input_label': 'Superficie en m²'
+            }
+        elif not has_location:
+            return {
+                'suggestion': '¿En qué zona geográfica se encuentra?',
+                'options': ['Norte', 'Centro', 'Sur']
+            }
+        else:
+            return {
+                'suggestion': 'Tengo suficiente información. ¿Quieres que continúe con el cálculo?',
+                'options': ['Sí, continuar', 'No, quiero modificar algo']
+            }
+    
+    def _replace_variables(self, text: str, context: Dict[str, Any]) -> str:
+        """
+        Reemplaza variables en el texto usando el contexto.
+        Soporta tanto {{variable}} como templates Jinja2.
+        
+        Args:
+            text: Texto con variables
+            context: Contexto de variables
+            
+        Returns:
+            Texto con variables reemplazadas
+        """
+        if not isinstance(text, str):
+            return text
+        
+        # Reemplazo simple de {{variable}}
+        for key, val in context.items():
+            if isinstance(val, (int, float, str)):
+                text = text.replace("{{"+key+"}}", str(val))
+        
+        # Intentar con Jinja2 para expresiones más complejas
+        try:
+            from jinja2 import Template
+            template = Template(text)
+            return template.render(**context)
+        except Exception as e:
+            # Si falla Jinja2, devolver el texto con reemplazo simple
+            return text
+    
+    def _perform_calculation(self, node: Dict[str, Any], context: Dict[str, Any]) -> None:
+        """
+        Ejecuta los cálculos definidos en un nodo.
+        
+        Args:
+            node: Nodo de tipo 'calculo'
+            context: Contexto donde se guardan los resultados
+        """
+        # Agregar parámetros al contexto
+        params = node.get("parametros", {})
+        for key, val in params.items():
+            context[key] = val
+        
+        # Ejecutar acciones (expresiones matemáticas)
+        for action in node.get("acciones", []):
+            self._exec_expression(action, context)
+    
+    def _exec_expression(self, expr: str, context: Dict[str, Any]) -> None:
+        """
+        Ejecuta una expresión matemática y guarda el resultado en el contexto.
+        
+        Args:
+            expr: Expresión a evaluar (ej: "carga_termica = superficie * potencia_m2")
+            context: Contexto donde se guarda el resultado
+        """
+        try:
+            # Funciones especiales disponibles en expresiones
+            local_context = {
+                'filter_radiators': filter_radiators,
+                'format_radiator_recommendations': format_radiator_recommendations,
+                'ceil': ceil,
+                'context': context
+            }
+            
+            # Dividir la expresión en variable y valor
+            var, val_expr = [x.strip() for x in expr.split("=", 1)]
+            
+            # Reemplazar context['variable'] por simplemente variable
+            val_expr = val_expr.replace("context['", "").replace("']", "")
+            
+            # Evaluar la expresión con las variables del contexto
+            val = eval(val_expr, {"__builtins__": None}, {**context, **local_context})
+            context[var] = val
+        
+        except Exception as e:
+            print(f"Error evaluando expresión '{expr}': {e}")
+            raise
+
+
+# Funciones auxiliares (mantenidas de app.py)
+
+def filter_radiators(radiator_type: str, installation: str, style: str, 
+                    color: str, heat_load: float) -> List[Dict[str, Any]]:
+    """
+    Filtra radiadores según las preferencias del usuario.
+    
+    Args:
+        radiator_type: Tipo de radiador
+        installation: Tipo de instalación
+        style: Estilo del radiador
+        color: Color preferido
+        heat_load: Carga térmica requerida
+        
+    Returns:
+        Lista de radiadores recomendados
+    """
+    recommended = []
+    
+    for name, model in RADIATOR_MODELS.items():
+        # Filtrar por tipo de radiador
+        if isinstance(model.get('type'), str):
+            if model.get('type') != radiator_type:
+                continue
+        else:
+            if radiator_type not in model.get('type', []):
+                continue
+        
+        # Filtrar por tipo de instalación
+        if installation != 'cualquiera':
+            if isinstance(model['installation'], str):
+                if model['installation'] != installation:
+                    continue
+            elif installation not in model['installation']:
+                continue
+        
+        # Filtrar por estilo
+        if style != 'cualquiera' and model['style'] != style:
+            continue
+        
+        # Filtrar por color
+        if color != 'cualquiera' and color not in model['colors']:
+            continue
+        
+        recommended.append({
+            'name': name,
+            'description': model['description'],
+            'coeficiente': model.get('coeficiente', 1.0),
+            'potencia': model['potencia'],
+            'colors': model['colors']
+        })
+    
+    # Ordenar por mejor ajuste a la carga térmica
+    recommended.sort(key=lambda x: abs(x['potencia'] * x['coeficiente'] - heat_load))
+    
+    return recommended[:3]  # Top 3 recomendaciones
+
+
+def format_radiator_recommendations(models: List[Dict[str, Any]], 
+                                   heat_load: float) -> str:
+    """
+    Formatea las recomendaciones de radiadores para mostrarlas al usuario.
+    
+    Args:
+        models: Lista de modelos recomendados
+        heat_load: Carga térmica requerida
+        
+    Returns:
+        Texto formateado con las recomendaciones
+    """
+    if not models or not isinstance(models, list):
+        return "No encontramos modelos que coincidan con tus requisitos. Por favor intenta con diferentes parámetros."
+    
+    result = []
+    for i, model in enumerate(models, 1):
+        try:
+            potencia_efectiva = model.get('potencia', 0) * model.get('coeficiente', 1)
+            modulos_estimados = ceil(heat_load / potencia_efectiva) if potencia_efectiva > 0 else 0
+            
+            model_info = [
+                f"{i}. {model.get('name', 'Modelo desconocido')}",
+                f"   - Potencia efectiva: {potencia_efectiva:.0f} kcal/h",
+                f"   - Módulos estimados: {modulos_estimados}",
+                f"   - Descripción: {model.get('description', 'Sin descripción disponible')}"
+            ]
+            
+            if 'colors' in model:
+                model_info.append(f"   - Colores disponibles: {', '.join(model['colors'])}")
+            
+            result.append("\n".join(model_info))
+        except Exception as e:
+            print(f"Error formateando modelo {model}: {e}")
+            continue
+    
+    return "\n\n".join(result) if result else "No se pudieron generar recomendaciones."
