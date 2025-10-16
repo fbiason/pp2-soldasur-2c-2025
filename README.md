@@ -4,6 +4,21 @@
 
 Proyecto desarrollado en el marco de **Prácticas Profesionalizantes II – 2° Cuatrimestre 2025**, orientado al diseño de un asistente conversacional capaz de brindar soporte técnico y asesoramiento automatizado a clientes y operarios del sector calefacción.
 
+## 🚀 Versiones Disponibles
+
+### 🌐 Versión Standalone con Ollama (v2.0) - **RECOMENDADA**
+- ✅ **100% Local** - Sin dependencias de APIs externas
+- ✅ **Privacidad total** - Procesamiento en tu máquina
+- ✅ **Costo cero** - Sin gastos por uso
+- ✅ **Modelo:** Llama 3.2 (3B)
+- 📄 [Ver documentación completa](docs/README_STANDALONE_OLLAMA.md)
+
+### 🔧 Versión Backend Python (v1.0)
+- Sistema híbrido con backend FastAPI
+- RAG + Sistema Experto
+- Requiere servidor Python
+- 📄 [Ver documentación](docs/PASOS.md)
+
 ---
 
 ## Equipo 2 – PP2 SOLDASUR 2C 2025  
@@ -27,6 +42,36 @@ Cada sprint incluirá:
 **Links del proyecto:**  
 - 📁 [Google Drive](https://drive.google.com/drive/u/0/folders/1pU7Th3OKQLMJ6IEezuRPtt7Ufv3Yb6Xe)  
 - 📋 [Tablero de Trello](https://trello.com/b/MdxyBFuU/equipo-2-pp2-soldasur-2c-2025)  
+
+---
+
+## 🏃 Inicio Rápido (Versión Standalone)
+
+### Requisitos
+1. **Instalar Ollama:** https://ollama.ai
+2. **Descargar modelo:**
+   ```bash
+   ollama pull llama3.2:3b
+   ```
+3. **Activar en Ollama Settings:** "Expose Ollama to the network"
+
+### Ejecutar
+```bash
+# Opción 1: Abrir directamente
+# Navegar a app/ y abrir soldasur2025.html
+
+# Opción 2: Con servidor local
+cd app
+python -m http.server 8000
+# Abrir: http://localhost:8000/soldasur2025.html
+```
+
+### Probar
+1. Hacer clic en el botón flotante de Soldy (esquina inferior derecha)
+2. Elegir una opción:
+   - 🤖 **Guíame en un cálculo** - Flujo estructurado
+   - 💬 **Tengo una pregunta** - Chat libre con IA
+   - 📦 **Buscar productos** - Catálogo PEISA
 
 ---
 

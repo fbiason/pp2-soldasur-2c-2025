@@ -8,8 +8,9 @@
         let userInputs = {};
         let inMainMenu = true;
         
-        /* Configuración OpenAI */
-        const OPENAI_API_KEY = '';
+        /* Configuración Ollama */
+        const OLLAMA_URL = 'http://localhost:11434/api/chat';
+        const OLLAMA_MODEL = 'llama3.2:3b';
         const conversationHistory = [];
         
         /* Catálogo de productos PEISA */
@@ -533,12 +534,12 @@
                 showLoadingIndicator();
                 
                 try {
-                    // Llamar a OpenAI
-                    const response = await callOpenAI(question);
+                    // Llamar a Ollama
+                    const response = await callOllama(question);
                     hideLoadingIndicator();
                     appendMessage('system', response.message);
                     
-                    // Si OpenAI recomienda productos, mostrarlos
+                    // Si Ollama recomienda productos, mostrarlos
                     if (response.products && response.products.length > 0) {
                         setTimeout(() => {
                             renderProducts(response.products);
@@ -555,14 +556,8 @@
             }
         }
         
-        /* Llamar a la API de OpenAI */
-        async function callOpenAI(userMessage) {
-            // Agregar mensaje del usuario al historial
-            conversationHistory.push({
-                role: 'user',
-                content: userMessage
-            });
-            
+        /* Llamar a la API de Ollama */
+        async function callOllama(userMessage) {
             // Crear el contexto del sistema con información de productos
             const systemPrompt = `Eres un asistente experto en productos de calefacción de PEISA - SOLDASUR S.A. 
 Tu objetivo es ayudar a los clientes a encontrar los productos adecuados para sus necesidades.
@@ -576,38 +571,49 @@ INSTRUCCIONES:
 3. Si recomiendas productos, menciona sus nombres exactos y características
 4. Proporciona información técnica cuando sea relevante
 5. Si el usuario pregunta sobre instalación, mantenimiento o garantías, proporciona información general
-6. Mantén las respuestas concisas pero informativas
+6. Mantén las respuestas concisas pero informativas (máximo 3-4 párrafos)
 
 FORMATO DE RESPUESTA:
 - Responde en español de Argentina
 - Usa un tono profesional pero cercano
 - Si recomiendas productos, menciónalos claramente en tu respuesta`;
 
-            const messages = [
-                { role: 'system', content: systemPrompt },
-                ...conversationHistory
-            ];
+            // Agregar mensaje del usuario al historial
+            conversationHistory.push({
+                role: 'user',
+                content: userMessage
+            });
+
+            // Preparar mensajes para Ollama (incluir system prompt solo la primera vez)
+            const messages = conversationHistory.length === 1 
+                ? [
+                    { role: 'system', content: systemPrompt },
+                    ...conversationHistory
+                  ]
+                : conversationHistory;
             
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            const response = await fetch(OLLAMA_URL, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${OPENAI_API_KEY}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    model: 'gpt-4',
+                    model: OLLAMA_MODEL,
                     messages: messages,
-                    temperature: 0.7,
-                    max_tokens: 500
+                    stream: false,
+                    options: {
+                        temperature: 0.7,
+                        num_predict: 500
+                    }
                 })
             });
             
             if (!response.ok) {
-                throw new Error('Error en la API de OpenAI');
+                throw new Error('Error en la API de Ollama');
             }
             
             const data = await response.json();
-            const assistantMessage = data.choices[0].message.content;
+            const assistantMessage = data.message.content;
             
             // Agregar respuesta del asistente al historial
             conversationHistory.push({
