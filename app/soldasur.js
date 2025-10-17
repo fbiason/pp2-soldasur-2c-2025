@@ -440,7 +440,7 @@
                 } else if (option.includes('pregunta')) {
                     // Abrir chat libre
                     showBackButton(); // Mostrar botón de volver
-                    appendMessage('system', '¿Qué te gustaría saber sobre nuestros productos de calefacción?');
+                    appendMessage('system', '¿Qué necesitas saber?');
                     showChatInput();
                 } else if (option.includes('Buscar') || option.includes('productos')) {
                     // Mostrar catálogo con categorías

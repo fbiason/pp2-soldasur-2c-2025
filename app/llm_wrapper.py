@@ -8,28 +8,35 @@ class OllamaLLM:
     
     def __init__(self, model: str = "llama3.2:3b"):
         self.model = model
-        self.system_prompt = """Eres PEISA Assistant, un experto técnico en sistemas de calefacción de PEISA - SOLDASUR S.A.
+        self.system_prompt = """Eres Soldy, asistente de ventas experto en calefacción de PEISA - SOLDASUR S.A.
 
-Tu rol es:
-- Asesorar sobre productos de calefacción (radiadores, calderas, piso radiante, termotanques)
-- Recomendar soluciones basadas en necesidades específicas
-- Explicar características técnicas de forma clara
-- Ayudar con dimensionamiento y cálculos básicos
+Tu objetivo principal es ORIENTAR AL CLIENTE HACIA UNA VENTA:
+- Recomienda productos específicos del catálogo en CADA respuesta
+- Destaca beneficios y características que motiven la compra
+- Sé persuasivo pero profesional
+- Crea urgencia y valor en tus recomendaciones
 
-Directrices:
-✓ Usa información del catálogo proporcionado
+Directrices de venta:
+✓ SIEMPRE menciona productos específicos por nombre
+✓ Enfócate en soluciones concretas, no teoría
+✓ Usa el catálogo proporcionado para recomendar
+✓ Destaca ventajas competitivas de los productos
 ✓ Sé preciso con especificaciones técnicas
-✓ Recomienda productos específicos cuando sea relevante
-✓ Explica de forma clara pero profesional
-✓ Si no tienes información, indícalo honestamente
+✗ No des respuestas genéricas sin productos
 ✗ No inventes datos técnicos
-✗ No recomiendes productos que no están en el catálogo"""
+✗ No recomiendes productos fuera del catálogo
+
+FORMATO DE RESPUESTA (OBLIGATORIO):
+- Entre 150 y 300 caracteres máximo
+- Una o dos frases breves (30-45 palabras)
+- SIEMPRE incluye el nombre de al menos 1 producto
+- Ve directo a la recomendación de venta"""
     
     def generate(self, 
                  question: str, 
                  context: Optional[List[Dict]] = None,
                  temperature: float = 0.7,
-                 max_tokens: int = 100) -> str:
+                 max_tokens: int = 80) -> str:
         """
         Genera una respuesta usando Ollama Mistral
         
@@ -90,17 +97,17 @@ Directrices:
         
         # Agregar la pregunta
         prompt_parts.append(f"\n\n❓ CONSULTA DEL CLIENTE:\n{question}")
-        prompt_parts.append("\n\n💬 RESPUESTA:")
+        prompt_parts.append("\n\n💬 TU RESPUESTA DE VENTA (150-300 caracteres, recomienda productos específicos):")
         
         return "\n".join(prompt_parts)
     
     def _fallback_response(self, question: str, context: Optional[List[Dict]] = None) -> str:
         """Respuesta de respaldo si falla Ollama"""
         if context and len(context) > 0:
-            products_list = ", ".join([p.get('model', 'N/A') for p in context[:3]])
-            return f"Basándome en tu consulta, te recomiendo revisar estos productos: {products_list}. Para más detalles específicos, por favor consulta con nuestro equipo técnico."
+            products_list = ", ".join([p.get('model', 'N/A') for p in context[:2]])
+            return f"Te recomiendo estos productos: {products_list}. Consulta con nuestro equipo para más detalles."
         else:
-            return "Disculpa, estoy teniendo problemas para procesar tu consulta en este momento. ¿Podrías reformular tu pregunta o ser más específico sobre qué tipo de producto de calefacción te interesa?"
+            return "Disculpa, hubo un error. ¿Podrías reformular tu pregunta sobre calefacción?"
     
     def chat(self, messages: List[Dict[str, str]]) -> str:
         """

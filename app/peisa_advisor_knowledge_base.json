@@ -43,14 +43,20 @@
     "acciones": [
       "carga_termica = superficie * potencia_m2[zona_geografica]",
       "longitud_total = superficie * densidad_caño",
-      "circuitos = ceil(longitud_total / longitud_maxima_circuito)"
+      "circuitos = ceil(longitud_total / longitud_maxima_circuito)",
+      "catalogo = load_product_catalog()",
+      "kit_recomendado = recommend_floor_heating_kit(superficie, catalogo)",
+      "kit_nombre = kit_recomendado.get('model', 'Kit Piso Radiante')",
+      "kit_descripcion = kit_recomendado.get('description', '')",
+      "kit_potencia = kit_recomendado.get('power_w', 0)",
+      "kits_necesarios = kit_recomendado.get('kits_needed', 1)"
     ],
     "siguiente": "resultado_piso_radiante"
   },
   {
     "id": "resultado_piso_radiante",
     "tipo": "respuesta",
-    "texto": "PISO RADIANTE:\n- Superficie: {{superficie}} m²\n- Potencia estimada: {{carga_termica}} W\n- Caños: {{longitud_total}} m\n- Circuitos sugeridos: {{circuitos}} de hasta 100 m\n\n¿Deseás calcular también RADIADORES para otro ambiente?",
+    "texto": "\ud83d\ude83 PISO RADIANTE - RESULTADO DEL CÁLCULO:\n\n\ud83d\udcdd CÁLCULOS TÉCNICOS:\n- Superficie: {{superficie}} m²\n- Potencia estimada: {{carga_termica}} W ({{carga_termica * 0.86|round(0)|int}} kcal/h)\n- Caños necesarios: {{longitud_total}} m\n- Circuitos sugeridos: {{circuitos}} de hasta 100 m\n\n\ud83d\udc51 PRODUCTO RECOMENDADO:\n\ud83d\dce7 {{kit_nombre}}\n- {{kit_descripcion}}\n{% if kits_necesarios > 1 %}- Cantidad necesaria: {{kits_necesarios}} kits\n{% endif %}- Potencia del kit: {{kit_potencia}} W\n\n\ud83d\udc9f NOTA: Este kit incluye tubería PEX, colector, aislación y accesorios necesarios.\n\n¿Deseás calcular también RADIADORES para otro ambiente?",
     "opciones": [
       { "texto": "Sí", "siguiente": "objetivo_radiadores" },
       { "texto": "No", "siguiente": "fin" }
@@ -63,15 +69,6 @@
       { "texto": "Calefacción principal de ambiente", "valor": "principal", "siguiente": "dimensiones_radiador" },
       { "texto": "Calefacción complementaria", "valor": "complementaria", "siguiente": "dimensiones_radiador" },
       { "texto": "Secado de toallas (baño)", "valor": "toallero", "siguiente": "seleccion_toallero" }
-    ]
-  },
-  {
-    "id": "seleccion_toallero",
-    "tipo": "respuesta",
-    "texto": "Para secado de toallas recomendamos el modelo TOALLERO SCALA:\n- Altura: 800/1500 mm\n- Ancho: 500 mm\n- Potencia: 632/1174 kcal/h\n- Material: Acero\n- Colores: Blanco y cromo",
-    "opciones": [
-      { "texto": "Calcular otro radiador", "siguiente": "inicio" },
-      { "texto": "Finalizar", "siguiente": "fin" }
     ]
   },
   {
@@ -124,16 +121,20 @@
     "descripcion": "Filtrar modelos según preferencias",
     "acciones": [
         "volumen = largo * ancho * alto",
-        "carga_termica = volumen * (50 if nivel_aislacion == 'baja' else 40 if nivel_aislacion == 'media' else 30)",
-        "modelos_recomendados = filter_radiators(objetivo_radiadores, tipo_instalacion, estilo_diseno, color_preferido, carga_termica)",
-        "modelos_recomendados_formateados = format_radiator_recommendations(modelos_recomendados, carga_termica)"
+        "factor_aislacion = 50 if nivel_aislacion == 'baja' else (40 if nivel_aislacion == 'media' else 30)",
+        "carga_termica_kcal = volumen * factor_aislacion",
+        "carga_termica_w = carga_termica_kcal / 0.86",
+        "catalogo = load_product_catalog()",
+        "radiadores_catalogo = recommend_radiator_from_catalog(carga_termica_w, catalogo)",
+        "modelos_recomendados = filter_radiators(objetivo_radiadores, tipo_instalacion, estilo_diseno, color_preferido, carga_termica_kcal)",
+        "modelos_recomendados_formateados = format_radiator_recommendations(modelos_recomendados, carga_termica_kcal)"
     ],
     "siguiente": "mostrar_recomendaciones"
   },
   {
   "id": "mostrar_recomendaciones",
   "tipo": "respuesta",
-  "texto": "Basado en tus necesidades, te recomendamos:\n\n{{modelos_recomendados_formateados}}",
+  "texto": "\ud83d\ude83 RADIADORES - RESULTADO DEL CÁLCULO:\n\n\ud83d\udcdd CÁLCULOS TÉCNICOS:\n- Ambiente: {{largo}}m x {{ancho}}m x {{alto}}m ({{volumen|round(1)}} m³)\n- Nivel de aislación: {{nivel_aislacion_texto}}\n- Carga térmica requerida: {{carga_termica_kcal|round(0)|int}} kcal/h ({{carga_termica_w|round(0)|int}} W)\n\n\ud83d\udc51 PRODUCTOS RECOMENDADOS DEL CATÁLOGO:\n{% for rad in radiadores_catalogo %}\n{{loop.index}}. {{rad.model}}\n   - Potencia: {{rad.power_w}} W\n   - {{rad.description}}\n   - Aplicaciones: {{rad.applications|join(', ')}}\n{% endfor %}\n\n\ud83d\udc9f MODELOS ALTERNATIVOS (por preferencias):\n{{modelos_recomendados_formateados}}\n\n¿Qué deseas hacer ahora?",
   "opciones": [
     { "texto": "Realizar nuevo cálculo", "siguiente": "inicio" },
     { "texto": "Terminar los cálculos", "siguiente": "fin" }

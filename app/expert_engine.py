@@ -9,6 +9,7 @@ from typing import Dict, Any, List, Optional
 import json
 from math import ceil
 from bisect import bisect_left
+from pathlib import Path
 from .models import RADIATOR_MODELS
 
 
@@ -348,6 +349,10 @@ class ExpertEngine:
             local_context = {
                 'filter_radiators': filter_radiators,
                 'format_radiator_recommendations': format_radiator_recommendations,
+                'recommend_boiler': recommend_boiler,
+                'recommend_floor_heating_kit': recommend_floor_heating_kit,
+                'recommend_radiator_from_catalog': recommend_radiator_from_catalog,
+                'load_product_catalog': load_product_catalog,
                 'ceil': ceil,
                 'context': context
             }
@@ -462,3 +467,154 @@ def format_radiator_recommendations(models: List[Dict[str, Any]],
             continue
     
     return "\n\n".join(result) if result else "No se pudieron generar recomendaciones."
+
+
+def load_product_catalog(catalog_path: str = "data/products_catalog.json") -> List[Dict[str, Any]]:
+    """
+    Carga el catálogo de productos desde el archivo JSON.
+    
+    Args:
+        catalog_path: Ruta al archivo del catálogo
+        
+    Returns:
+        Lista de productos
+    """
+    try:
+        with open(catalog_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print(f"Advertencia: No se encontró {catalog_path}")
+        return []
+    except Exception as e:
+        print(f"Error cargando catálogo: {e}")
+        return []
+
+
+def recommend_boiler(power_required_w: float, boiler_type: str, 
+                    catalog: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+    """
+    Recomienda una caldera específica del catálogo según la potencia requerida.
+    
+    Args:
+        power_required_w: Potencia requerida en Watts
+        boiler_type: Tipo de caldera ('mural' o 'piso')
+        catalog: Catálogo de productos (se carga automáticamente si no se provee)
+        
+    Returns:
+        Diccionario con la caldera recomendada
+    """
+    if catalog is None:
+        catalog = load_product_catalog()
+    
+    # Filtrar calderas del catálogo
+    boilers = [p for p in catalog if p.get('family') == 'Calderas']
+    
+    # Filtrar por tipo si se especifica
+    type_map = {'mural': 'Caldera mural', 'piso': 'Caldera de piso'}
+    if boiler_type in type_map:
+        boilers = [b for b in boilers if b.get('type') == type_map[boiler_type]]
+    
+    if not boilers:
+        return {
+            'model': 'Caldera genérica',
+            'power_w': power_required_w,
+            'description': f'Caldera {boiler_type} de {power_required_w:.0f}W requerida'
+        }
+    
+    # Encontrar la caldera con potencia más cercana (pero suficiente)
+    suitable_boilers = [b for b in boilers if b.get('power_w', 0) >= power_required_w]
+    
+    if suitable_boilers:
+        # Elegir la de menor potencia que cumpla el requisito
+        recommended = min(suitable_boilers, key=lambda x: x.get('power_w', float('inf')))
+    else:
+        # Si ninguna cumple, elegir la de mayor potencia disponible
+        recommended = max(boilers, key=lambda x: x.get('power_w', 0))
+    
+    return recommended
+
+
+def recommend_floor_heating_kit(surface_m2: float, 
+                               catalog: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+    """
+    Recomienda un kit de piso radiante según la superficie.
+    
+    Args:
+        surface_m2: Superficie en metros cuadrados
+        catalog: Catálogo de productos
+        
+    Returns:
+        Diccionario con el kit recomendado
+    """
+    if catalog is None:
+        catalog = load_product_catalog()
+    
+    # Filtrar kits de piso radiante
+    kits = [p for p in catalog if p.get('family') == 'Piso Radiante' and 'KIT' in p.get('model', '')]
+    
+    if not kits:
+        return {
+            'model': f'Kit Piso Radiante {surface_m2:.0f}m²',
+            'description': f'Kit completo para {surface_m2:.0f}m²'
+        }
+    
+    # Extraer superficie de cada kit (del campo dimentions o model)
+    for kit in kits:
+        model_name = kit.get('model', '')
+        if 'KIT' in model_name and 'm²' in model_name:
+            try:
+                # Extraer número de m² del nombre (ej: "PEISA PISO RADIANTE KIT 15m²")
+                surface_str = model_name.split('KIT')[1].strip().replace('m²', '')
+                kit['surface_m2'] = float(surface_str)
+            except:
+                kit['surface_m2'] = 0
+    
+    # Encontrar el kit más adecuado
+    suitable_kits = [k for k in kits if k.get('surface_m2', 0) >= surface_m2]
+    
+    if suitable_kits:
+        recommended = min(suitable_kits, key=lambda x: x.get('surface_m2', float('inf')))
+    else:
+        # Si la superficie es mayor que todos los kits, recomendar el más grande
+        recommended = max(kits, key=lambda x: x.get('surface_m2', 0))
+        # Calcular cuántos kits se necesitan
+        kits_needed = ceil(surface_m2 / recommended.get('surface_m2', 1))
+        recommended['kits_needed'] = kits_needed
+    
+    return recommended
+
+
+def recommend_radiator_from_catalog(power_required_w: float,
+                                   catalog: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
+    """
+    Recomienda radiadores del catálogo según la potencia requerida.
+    
+    Args:
+        power_required_w: Potencia requerida en Watts
+        catalog: Catálogo de productos
+        
+    Returns:
+        Lista de radiadores recomendados
+    """
+    if catalog is None:
+        catalog = load_product_catalog()
+    
+    # Filtrar radiadores del catálogo (excluyendo toalleros)
+    radiators = [
+        p for p in catalog 
+        if p.get('family') == 'Radiadores' 
+        and 'toallero' not in p.get('type', '').lower()
+        and 'TOALLERO' not in p.get('model', '')
+    ]
+    
+    if not radiators:
+        return []
+    
+    # Ordenar por cercanía a la potencia requerida
+    for rad in radiators:
+        rad['power_diff'] = abs(rad.get('power_w', 0) - power_required_w)
+    
+    radiators.sort(key=lambda x: x['power_diff'])
+    
+    # Retornar top 3
+    return radiators[:3]
