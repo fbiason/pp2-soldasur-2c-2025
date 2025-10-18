@@ -255,19 +255,60 @@ Respuesta fusionada con opciones
 - `app/peisa_advisor_knowledge_base.json`
 - `app/models.py`
 - `app/llm_wrapper.py`
-- `query/query.py`
-- `app/chat.html`
 
 ---
 
-## Paso 9: Uso
+## Paso 9: Instalación y Configuración
 
-### Iniciar servidor:
+### 1. Crear y activar entorno virtual
+
+**¿Por qué un entorno virtual?**
+- Aísla las dependencias del proyecto
+- Evita conflictos con otras versiones de librerías
+- Facilita la reproducibilidad del entorno
+
+**Windows:**
+```bash
+# Crear entorno virtual
+python -m venv venv
+
+# Activar entorno virtual
+venv\Scripts\activate
+```
+
+**Linux/macOS:**
+```bash
+# Crear entorno virtual
+python3 -m venv venv
+
+# Activar entorno virtual
+source venv/bin/activate
+```
+
+**Verificar activación:**
+Deberías ver `(venv)` al inicio de tu línea de comandos.
+
+### 2. Instalar dependencias
+
+```bash
+pip install -r requirements.txt
+```
+
+**Dependencias principales:**
+- `fastapi` + `uvicorn`: Servidor web
+- `ollama`: Cliente para Ollama
+- `faiss-cpu`: Búsqueda vectorial
+- `sentence-transformers`: Embeddings
+- `torch`: Framework ML
+
+### 3. Iniciar servidor
+
 ```bash
 python -m uvicorn app.main:app --reload
 ```
 
-### Acceder:
+### 4. Acceder
+
 ```
 http://localhost:8000/
 ```

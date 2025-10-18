@@ -207,6 +207,31 @@ Repositorio Git (branch main + feature branches).
 
 ## 8. Lanzar la aplicación
 
-```cmd
+### ⚠️ IMPORTANTE: Usar entorno virtual
+
+Antes de ejecutar cualquier comando, debes crear y activar un entorno virtual:
+
+```bash
+# 1. Crear entorno virtual
+python -m venv venv
+
+# 2. Activar (Windows)
+venv\Scripts\activate
+
+# 3. Instalar dependencias
+pip install -r requirements.txt
+
+# 4. Lanzar aplicación
 uvicorn app.main:app --reload
 ```
+
+📖 **[Ver guía completa de entornos virtuales](ENTORNO_VIRTUAL.md)**
+
+---
+
+## 📚 Documentación Adicional
+
+- **[Guía de Entornos Virtuales](ENTORNO_VIRTUAL.md)** - Explicación detallada sobre venv
+- **[Pasos de Unificación](PASOS.md)** - Arquitectura del sistema híbrido
+- **[Sistema Experto](SISTEMA_EXPERTO.md)** - Motor de reglas
+- **[Quick Start](QUICKSTART.md)** - Inicio rápido versión Standalone

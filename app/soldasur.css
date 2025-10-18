@@ -339,7 +339,7 @@
             top: 20px;
             right: 20px;
             bottom: 130px;  /* Espacio para la cabeza de Soldy (100px + margen) */
-            left: 20px;
+            left: 50%;  /* Ocupa solo la mitad derecha de la pantalla */
             width: auto !important;
             height: auto !important;
             max-width: none !important;
@@ -358,7 +358,7 @@
                 top: 20px;
                 right: 20px;
                 bottom: 130px;
-                left: 20px;
+                left: 50%;
             }
         }
         
@@ -430,7 +430,7 @@
                 top: 10px;
                 right: 10px;
                 bottom: 110px;  /* Espacio para la cabeza de Soldy en móviles (80px + margen) */
-                left: 10px;
+                left: 50%;  /* Ocupa solo la mitad derecha en móviles también */
             }
             
             .chat-button {

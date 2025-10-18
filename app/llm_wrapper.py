@@ -37,8 +37,8 @@ FORMATO DE RESPUESTA (OBLIGATORIO - NO EXCEDER):
     def generate(self, 
                  question: str, 
                  context: Optional[List[Dict]] = None,
-                 temperature: float = 0.7,
-                 max_tokens: int = 35) -> str:
+                 temperature: float = 0.3,
+                 max_tokens: int = 30) -> str:
         """
         Genera una respuesta usando Ollama Mistral
         
@@ -52,29 +52,65 @@ FORMATO DE RESPUESTA (OBLIGATORIO - NO EXCEDER):
             # Construir el prompt con contexto
             prompt = self._build_prompt(question, context)
             
-            # Llamar a Ollama
+            # Llamar a Ollama con control ESTRICTO de longitud
             response = ollama.generate(
                 model=self.model,
                 prompt=prompt,
                 system=self.system_prompt,
                 options={
                     'temperature': temperature,
-                    'num_predict': max_tokens,
-                    'top_p': 0.9,
-                    'top_k': 40
+                    'num_predict': max_tokens,  # LÍMITE DURO: máximo 30 tokens
+                    'top_p': 0.7,  # Muy reducido para respuestas determinísticas
+                    'top_k': 20,  # Muy bajo para máximo control
+                    'repeat_penalty': 1.3,  # Penaliza fuertemente repeticiones
+                    'num_ctx': 1024,  # Contexto muy limitado
+                    'stop': ['.', '\n', '?', '!', 'Por ejemplo', 'También', 'Además', 'Si']  # Detiene en puntuación y conectores
                 }
             )
             
             answer = response['response'].strip()
             
+            # POST-PROCESAMIENTO: Truncar a primera oración completa
+            answer = self._truncate_to_brief(answer)
+            
             # Log para debugging
-            print(f"🤖 Ollama Mistral respondió ({len(answer)} caracteres)")
+            word_count = len(answer.split())
+            print(f"🤖 Ollama respondió: {word_count} palabras, {len(answer)} caracteres")
             
             return answer
             
         except Exception as e:
             print(f"❌ Error en Ollama: {e}")
             return self._fallback_response(question, context)
+    
+    def _truncate_to_brief(self, text: str, max_words: int = 25) -> str:
+        """
+        Trunca la respuesta para garantizar brevedad (15-20 palabras idealmente)
+        Corta en la primera oración completa o en max_words
+        """
+        # Eliminar saltos de línea múltiples
+        text = ' '.join(text.split())
+        
+        # Si ya es corto, retornar
+        words = text.split()
+        if len(words) <= max_words:
+            return text
+        
+        # Buscar primer punto, signo de pregunta o exclamación
+        for i, char in enumerate(text):
+            if char in ['.', '?', '!']:
+                sentence = text[:i+1].strip()
+                # Verificar que la oración tenga al menos 10 palabras
+                if len(sentence.split()) >= 10:
+                    return sentence
+        
+        # Si no hay puntuación, truncar a max_words
+        truncated = ' '.join(words[:max_words])
+        # Agregar punto si no termina en puntuación
+        if truncated and truncated[-1] not in ['.', '?', '!']:
+            truncated += '.'
+        
+        return truncated
     
     def _build_prompt(self, question: str, context: Optional[List[Dict]] = None) -> str:
         """Construye el prompt con contexto del catálogo"""
@@ -99,7 +135,7 @@ FORMATO DE RESPUESTA (OBLIGATORIO - NO EXCEDER):
         
         # Agregar la pregunta
         prompt_parts.append(f"\n\n❓ CONSULTA DEL CLIENTE:\n{question}")
-        prompt_parts.append("\n\n💬 TU RESPUESTA DE VENTA (MÁXIMO 150 caracteres, MUY breve, recomienda productos específicos):")
+        prompt_parts.append("\n\n💬 RESPONDE EN UNA SOLA ORACIÓN BREVE (15-20 palabras) recomendando productos:")
         
         return "\n".join(prompt_parts)
     

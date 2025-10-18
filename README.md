@@ -16,8 +16,23 @@ Proyecto desarrollado en el marco de **Prácticas Profesionalizantes II – 2° 
 ### 🔧 Versión Backend Python (v1.0)
 - Sistema híbrido con backend FastAPI
 - RAG + Sistema Experto
-- Requiere servidor Python
+- Requiere servidor Python + entorno virtual
 - 📄 [Ver documentación](docs/PASOS.md)
+
+**Instalación rápida:**
+```bash
+# 1. Crear entorno virtual
+python -m venv venv
+
+# 2. Activar (Windows)
+venv\Scripts\activate
+
+# 3. Instalar dependencias
+pip install -r requirements.txt
+
+# 4. Iniciar servidor
+python -m uvicorn app.main:app --reload
+```
 
 ---
 
