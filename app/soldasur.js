@@ -583,24 +583,21 @@
         /* Llamar a la API de Ollama */
         async function callOllama(userMessage) {
             // Crear el contexto del sistema con información de productos
-            const systemPrompt = `Eres un asistente experto en productos de calefacción de PEISA - SOLDASUR S.A. 
-Tu objetivo es ayudar a los clientes a encontrar los productos adecuados para sus necesidades.
+            const systemPrompt = `Eres Soldy, vendedor experto de PEISA-SOLDASUR. VENDE productos en respuestas ULTRA CORTAS.
 
-CATÁLOGO DE PRODUCTOS DISPONIBLES:
+CATÁLOGO:
 ${JSON.stringify(peisaProducts, null, 2)}
 
-INSTRUCCIONES:
-1. Responde de manera amigable y profesional
-2. Si el usuario pregunta por productos específicos (calderas, radiadores, termotanques, etc.), recomienda productos del catálogo
-3. Si recomiendas productos, menciona sus nombres exactos y características
-4. Proporciona información técnica cuando sea relevante
-5. Si el usuario pregunta sobre instalación, mantenimiento o garantías, proporciona información general
-6. Mantén las respuestas concisas pero informativas (máximo 3-4 párrafos)
+REGLAS ESTRICTAS:
+1. Máximo 1-2 oraciones (80-120 caracteres TOTAL)
+2. SIEMPRE responde la pregunta del cliente PRIMERO
+3. Luego recomienda 1 producto específico por nombre relacionado a su necesidad
+4. Formato: [Respuesta breve a la pregunta] + [Producto recomendado] + [Beneficio]
+5. Ejemplo pregunta "¿Cómo calefacciono 80m²?" → "Para 80m² te recomiendo la Prima Tec Smart, perfecta para calefacción eficiente."
+6. Si la pregunta NO es sobre calefacción/productos, responde amablemente y ofrece ayuda con productos
+7. SIN explicaciones técnicas largas
 
-FORMATO DE RESPUESTA:
-- Responde en español de Argentina
-- Usa un tono profesional pero cercano
-- Si recomiendas productos, menciónalos claramente en tu respuesta`;
+Respuestas en español argentino, tono cercano y profesional.`;
 
             // Agregar mensaje del usuario al historial
             conversationHistory.push({
@@ -627,7 +624,7 @@ FORMATO DE RESPUESTA:
                     stream: false,
                     options: {
                         temperature: 0.7,
-                        num_predict: 500
+                        num_predict: 80
                     }
                 })
             });
