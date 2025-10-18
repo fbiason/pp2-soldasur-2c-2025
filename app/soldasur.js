@@ -410,22 +410,24 @@
         function handleOptionClick(option) {
             appendMessage('user', option);
             
-            // Manejar selección de categorías de productos PRIMERO (antes de verificar conversationStep)
-            if (['Calderas', 'Radiadores', 'Termotanques', 'Calefones', 'Toalleros', 'Climatizadores', 'Termostatos'].includes(option)) {
-                console.log('Categoría seleccionada:', option);
+            // Manejar selecci f3n de categor edas de productos SOLO si estamos en el men fa principal
+            // (evita que opciones del flujo experto sean interceptadas como navegaci f3n de cat e1logo)
+            const productCategories = ['Calderas', 'Radiadores', 'Termotanques', 'Calefones', 'Toalleros', 'Climatizadores', 'Termostatos'];
+            if (conversationStep === 0 && productCategories.includes(option)) {
+                console.log('Categor\u00eda seleccionada (menu principal):', option);
                 const categoryProducts = peisaProducts.filter(p => p.family === option);
                 console.log('Productos encontrados:', categoryProducts.length, categoryProducts);
-                
+
                 if (categoryProducts.length > 0) {
-                    appendMessage('system', `📦 Aquí están nuestros <strong>${categoryProducts.length} productos de ${option}</strong>:`);
+                    appendMessage('system', `\ud83d\udce6 Aqu\u00ed est\u00e1n nuestros <strong>${categoryProducts.length} productos de ${option}</strong>:`);
                     setTimeout(() => {
                         renderProducts(categoryProducts);
-                        appendMessage('system', `💡 <em>Haz clic en cualquier producto para ver más detalles en nuestra web.</em>`);
-                        renderOptions(['🤖 Hacer un cálculo', '💬 Hacer una pregunta', '📦 Ver otras categorías'], false);
+                        appendMessage('system', `\ud83d\udca1 <em>Haz clic en cualquier producto para ver m\u00e1s detalles en nuestra web.</em>`);
+                        renderOptions(['\ud83e\udd16 Hacer un c\u00e1lculo', '\ud83d\udcac Hacer una pregunta', '\ud83d\udce6 Ver otras categor\u00edas'], false);
                     }, 500);
                 } else {
-                    appendMessage('system', `Lo siento, no encontré productos en la categoría ${option}. ¿Te gustaría ver otra categoría?`);
-                    renderOptions(['📦 Ver otras categorías', '🤖 Hacer un cálculo', '💬 Hacer una pregunta'], false);
+                    appendMessage('system', `Lo siento, no encontr\u00e9 productos en la categor\u00eda ${option}. \u00bfTe gustar\u00eda ver otra categor\u00eda?`);
+                    renderOptions(['\ud83d\udce6 Ver otras categor\u00edas', '\ud83e\udd16 Hacer un c\u00e1lculo', '\ud83d\udcac Hacer una pregunta'], false);
                 }
                 return;
             }
