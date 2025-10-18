@@ -16,7 +16,7 @@ DB_PATH    = SCRIPT_DIR.parent / "embeddings" / "products.db"
 INDEX_PATH = SCRIPT_DIR.parent / "embeddings" / "products.faiss"
 MODEL_NAME = "sentence-transformers/distiluse-base-multilingual-cased-v2"
 
-TOP_K_DEFAULT = 5
+TOP_K_DEFAULT = 3
 SEARCH_POOL_K = 80           # se recuperan más, luego se filtra
 
 # ────────────────────────────────────────────────────────────────────────────

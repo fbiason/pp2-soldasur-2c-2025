@@ -69,6 +69,28 @@
 
         /* Toggle del chat flotante */
         let chatIsOpen = false;
+        let isMaximized = false;
+        
+        function toggleMaximize() {
+            const chatWidget = document.getElementById('chat-widget');
+            const maximizeIcon = document.getElementById('maximize-icon');
+            const minimizeIcon = document.getElementById('minimize-icon');
+            const maximizeButton = document.getElementById('maximize-button');
+            
+            isMaximized = !isMaximized;
+            
+            if (isMaximized) {
+                chatWidget.classList.add('maximized');
+                maximizeIcon.classList.add('hidden');
+                minimizeIcon.classList.remove('hidden');
+                maximizeButton.title = 'Restaurar';
+            } else {
+                chatWidget.classList.remove('maximized');
+                maximizeIcon.classList.remove('hidden');
+                minimizeIcon.classList.add('hidden');
+                maximizeButton.title = 'Maximizar';
+            }
+        }
         
         function toggleChat() {
             const chatWidget = document.getElementById('chat-widget');
@@ -709,11 +731,48 @@ FORMATO DE RESPUESTA:
 
         /* Helpers */
         function showLoadingIndicator() {
+            // Mostrar indicador en el área de input
             document.getElementById('input-area').innerHTML = 
                 '<div class="text-center py-2"><div class="loading-spinner inline-block"></div></div>';
+            
+            // Agregar mensaje de "pensando" en el chat
+            const chatContainer = document.getElementById('chat-container');
+            const thinkingDiv = document.createElement('div');
+            thinkingDiv.id = 'thinking-indicator';
+            thinkingDiv.className = 'chat-message system-message rounded-lg p-3 fade-in';
+            thinkingDiv.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <div class="loading-spinner inline-block"></div>
+                    <span class="thinking-text">Soldy está pensando</span>
+                </div>
+            `;
+            chatContainer.appendChild(thinkingDiv);
+            scrollToBottom();
+            
+            // Animar los puntos suspensivos
+            let dots = 0;
+            window.thinkingInterval = setInterval(() => {
+                dots = (dots + 1) % 4;
+                const thinkingText = document.querySelector('.thinking-text');
+                if (thinkingText) {
+                    thinkingText.textContent = 'Soldy está pensando' + '.'.repeat(dots);
+                }
+            }, 500);
         }
 
-        function hideLoadingIndicator() {}
+        function hideLoadingIndicator() {
+            // Limpiar el intervalo de animación
+            if (window.thinkingInterval) {
+                clearInterval(window.thinkingInterval);
+                window.thinkingInterval = null;
+            }
+            
+            // Eliminar el mensaje de "pensando"
+            const thinkingIndicator = document.getElementById('thinking-indicator');
+            if (thinkingIndicator) {
+                thinkingIndicator.remove();
+            }
+        }
 
         function appendMessage(sender, text) {
             const chatContainer = document.getElementById('chat-container');

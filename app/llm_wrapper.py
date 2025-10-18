@@ -26,17 +26,19 @@ Directrices de venta:
 ✗ No inventes datos técnicos
 ✗ No recomiendes productos fuera del catálogo
 
-FORMATO DE RESPUESTA (OBLIGATORIO):
-- Entre 150 y 300 caracteres máximo
-- Una o dos frases breves (30-45 palabras)
+FORMATO DE RESPUESTA (OBLIGATORIO - NO EXCEDER):
+- MÁXIMO 150 caracteres (cuenta cada letra)
+- Una o dos frases MUY breves (15-20 palabras máximo)
 - SIEMPRE incluye el nombre de al menos 1 producto
-- Ve directo a la recomendación de venta"""
+- Ve directo a la recomendación de venta
+- NO des explicaciones largas
+- Sé EXTREMADAMENTE conciso"""
     
     def generate(self, 
                  question: str, 
                  context: Optional[List[Dict]] = None,
                  temperature: float = 0.7,
-                 max_tokens: int = 80) -> str:
+                 max_tokens: int = 35) -> str:
         """
         Genera una respuesta usando Ollama Mistral
         
@@ -81,7 +83,7 @@ FORMATO DE RESPUESTA (OBLIGATORIO):
         # Agregar contexto de productos si existe
         if context and len(context) > 0:
             prompt_parts.append("📦 CATÁLOGO DE PRODUCTOS RELEVANTES:\n")
-            for i, product in enumerate(context[:5], 1):  # Máximo 5 productos
+            for i, product in enumerate(context[:3], 1):  # Máximo 3 productos
                 prompt_parts.append(f"\n{i}. **{product.get('model', 'N/A')}** ({product.get('family', 'N/A')})")
                 prompt_parts.append(f"   - Tipo: {product.get('type', 'N/A')}")
                 prompt_parts.append(f"   - Potencia: {product.get('power_w', 0)} W")
@@ -97,14 +99,14 @@ FORMATO DE RESPUESTA (OBLIGATORIO):
         
         # Agregar la pregunta
         prompt_parts.append(f"\n\n❓ CONSULTA DEL CLIENTE:\n{question}")
-        prompt_parts.append("\n\n💬 TU RESPUESTA DE VENTA (150-300 caracteres, recomienda productos específicos):")
+        prompt_parts.append("\n\n💬 TU RESPUESTA DE VENTA (MÁXIMO 150 caracteres, MUY breve, recomienda productos específicos):")
         
         return "\n".join(prompt_parts)
     
     def _fallback_response(self, question: str, context: Optional[List[Dict]] = None) -> str:
         """Respuesta de respaldo si falla Ollama"""
         if context and len(context) > 0:
-            products_list = ", ".join([p.get('model', 'N/A') for p in context[:2]])
+            products_list = ", ".join([p.get('model', 'N/A') for p in context[:3]])
             return f"Te recomiendo estos productos: {products_list}. Consulta con nuestro equipo para más detalles."
         else:
             return "Disculpa, hubo un error. ¿Podrías reformular tu pregunta sobre calefacción?"

@@ -1,721 +1,402 @@
-# Sistema Experto - SOLDASUR
-
-## 📋 Descripción General
-
-El **Sistema Experto** es un motor basado en reglas que guía al usuario paso a paso en el cálculo y dimensionamiento de sistemas de calefacción. Utiliza una base de conocimiento estructurada en formato JSON que define un árbol de decisiones conversacional.
-
-## 🏗️ Arquitectura del Sistema
-
-### Componentes Principales
-
-1. **ExpertEngine** (`app/expert_engine.py`)
-   - Motor principal del sistema experto
-   - Procesa el flujo conversacional basado en nodos
-   - Ejecuta cálculos automáticos
-   - Soporta enriquecimiento con RAG
-
-2. **Base de Conocimiento** (`app/peisa_advisor_knowledge_base.json`)
-   - Árbol de decisiones en formato JSON
-   - Define preguntas, opciones y cálculos
-   - Estructura de nodos interconectados
-
-3. **Orchestrator** (`app/orchestrator.py`)
-   - Coordina entre el sistema experto y el RAG
-   - Clasifica intenciones del usuario
-   - Maneja modos de conversación (experto, RAG, híbrido)
-
-4. **API FastAPI** (`app/main.py`)
-   - Endpoints REST para interacción
-   - Gestión de conversaciones
-   - Integración con interfaz web
-
-## 🔄 Flujo de Funcionamiento
-
-### 1. Inicialización
-```
-Usuario → /start → Orchestrator → ExpertEngine → Nodo "inicio"
-```
-
-### 2. Procesamiento de Interacciones
-```
-Usuario selecciona opción/ingresa datos
-    ↓
-Orchestrator clasifica intención
-    ↓
-ExpertEngine procesa entrada
-    ↓
-Actualiza contexto (variables)
-    ↓
-Avanza al siguiente nodo
-    ↓
-Retorna pregunta/resultado
-```
-
-### 3. Tipos de Nodos
-
-#### **Nodo de Pregunta con Opciones**
-```json
-{
-  "id": "inicio",
-  "pregunta": "¿Qué tipo de calefacción desea calcular?",
-  "opciones": [
-    { "texto": "Piso radiante", "siguiente": "superficie_piso" },
-    { "texto": "Radiadores", "siguiente": "objetivo_radiadores" }
-  ]
-}
-```
-
-#### **Nodo de Entrada de Usuario**
-```json
-{
-  "id": "superficie_piso",
-  "pregunta": "¿Cuál es la superficie útil (en m²)?",
-  "tipo": "entrada_usuario",
-  "variable": "superficie",
-  "siguiente": "tipo_piso"
-}
-```
-
-#### **Nodo de Cálculo**
-```json
-{
-  "id": "calculo_piso_radiante",
-  "tipo": "calculo",
-  "parametros": {
-    "potencia_m2": { "norte": 100, "sur": 125 }
-  },
-  "acciones": [
-    "carga_termica = superficie * potencia_m2[zona_geografica]",
-    "longitud_total = superficie * densidad_caño"
-  ],
-  "siguiente": "resultado_piso_radiante"
-}
-```
-
-#### **Nodo de Respuesta**
-```json
-{
-  "id": "resultado_piso_radiante",
-  "tipo": "respuesta",
-  "texto": "PISO RADIANTE:\n- Superficie: {{superficie}} m²\n- Potencia: {{carga_termica}} W",
-  "opciones": [
-    { "texto": "Calcular radiadores", "siguiente": "objetivo_radiadores" }
-  ]
-}
-```
-
-## 🎯 Funcionalidades Clave
-
-### Gestión de Variables
-- **Contexto persistente**: Mantiene variables durante toda la conversación
-- **Reemplazo de variables**: Usa `{{variable}}` en textos
-- **Soporte Jinja2**: Expresiones complejas en plantillas
-
-### Cálculos Automáticos
-- **Expresiones matemáticas**: Evalúa fórmulas en nodos de cálculo
-- **Funciones especiales**:
-  - `filter_radiators()`: Filtra modelos según preferencias
-  - `format_radiator_recommendations()`: Formatea recomendaciones
-  - `ceil()`: Redondeo hacia arriba
-
-### Enriquecimiento RAG
-- **Información adicional**: Complementa respuestas con datos del RAG
-- **Contexto inteligente**: Usa variables del experto para consultas RAG
-
-## 🚀 Cómo Ejecutar el Sistema
-
-### Requisitos Previos
-```bash
-# Instalar dependencias
-pip install -r requirements.txt
-```
-
-### Opción 1: Ejecutar el Servidor Completo (RECOMENDADO)
-```bash
-# Desde la raíz del proyecto
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### Opción 2: Ejecutar directamente main.py
-```bash
-# Desde la raíz del proyecto
-python app/main.py
-```
-
-### Opción 3: Usando PowerShell (Windows)
-```powershell
-# Navegar al directorio del proyecto
-cd c:\Users\Franco\Desktop\proyecto_final_soldasur\soldasur_2025\pp2-soldasur-2c-2025
-
-# Activar entorno virtual si existe
-# .\venv\Scripts\Activate.ps1
-
-# Ejecutar servidor
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### Verificar que el Sistema Está Corriendo
-Al ejecutar, deberías ver en la consola:
-```
-🚀 INICIANDO SISTEMA UNIFICADO PEISA - SOLDASUR
-📋 Inicializando Expert Engine...
-✅ Expert Engine listo
-✅ RAG Engine V2 listo
-🔗 Configurando dependencias mutuas...
-✅ Dependencias configuradas
-🎭 Inicializando Orquestador...
-✅ Orquestador listo
-🎉 SISTEMA UNIFICADO LISTO
-
-📡 Servidor disponible en: http://localhost:8000
-📚 Documentación API: http://localhost:8000/docs
-💬 Chat Unificado: http://localhost:8000/
-```
-
-## 🌐 Acceso a la Interfaz
-
-Una vez ejecutado el servidor, accede a:
-
-- **Chat Unificado**: http://localhost:8000/
-- **Documentación API**: http://localhost:8000/docs
-- **Health Check**: http://localhost:8000/health
-
-## 📡 Endpoints API
-
-### POST /start
-Inicia una nueva conversación
-```json
-{
-  "conversation_id": "user123",
-  "mode": "expert"  // "expert", "rag", o "hybrid"
-}
-```
-
-**Respuesta:**
-```json
-{
-  "conversation_id": "user123",
-  "node_id": "inicio",
-  "type": "question",
-  "text": "¿Qué tipo de calefacción desea calcular?",
-  "options": ["Piso radiante", "Radiadores"],
-  "mode": "expert",
-  "mode_label": "🤖 Modo Experto"
-}
-```
-
-### POST /reply
-Envía respuesta del usuario
-```json
-{
-  "conversation_id": "user123",
-  "message": "",
-  "option_index": 0,  // Para seleccionar opciones
-  "input_values": {"value": "50"}  // Para entrada numérica
-}
-```
-
-**Respuesta:**
-```json
-{
-  "conversation_id": "user123",
-  "node_id": "superficie_piso",
-  "type": "question",
-  "text": "¿Cuál es la superficie útil a calefaccionar?",
-  "input_type": "number",
-  "input_label": "Ingrese el valor"
-}
-```
-
-### GET /health
-Verifica estado del sistema
-```json
-{
-  "status": "ok",
-  "service": "PEISA - SOLDASUR S.A",
-  "expert_engine": "ready",
-  "rag_engine": "ready",
-  "orchestrator": "ready"
-}
-```
-
-## 🎭 Modos de Operación
-
-### 1. Modo Experto (🤖)
-- **Flujo guiado paso a paso**
-- Preguntas estructuradas
-- Cálculos automáticos
-- Recomendaciones precisas
-- Ideal para usuarios que necesitan guía
-
-**Activar:**
-```json
-POST /start
-{
-  "conversation_id": "user123",
-  "mode": "expert"
-}
-```
-
-### 2. Modo RAG (💬)
-- **Chat libre con IA**
-- Búsqueda semántica
-- Respuestas generativas
-- Consulta de productos
-- Ideal para preguntas abiertas
-
-**Activar:**
-```json
-POST /start
-{
-  "conversation_id": "user123",
-  "mode": "rag"
-}
-```
-
-### 3. Modo Híbrido (⚡)
-- **Combina ambos sistemas**
-- Sugerencias inteligentes
-- Transición fluida entre modos
-- Aclaraciones durante flujo guiado
-- Modo por defecto
-
-**Activar:**
-```json
-POST /start
-{
-  "conversation_id": "user123",
-  "mode": "hybrid"
-}
-```
-
-## 🔍 Ejemplo de Flujo Completo
-
-### Cálculo de Piso Radiante
-
-**Paso 1: Inicio**
-```
-Usuario: [Inicia conversación]
-Sistema: "¿Qué tipo de calefacción desea calcular?"
-Opciones: ["Piso radiante", "Radiadores"]
-```
-
-**Paso 2: Selección**
-```
-Usuario: Selecciona opción 0 (Piso radiante)
-Sistema: "¿Cuál es la superficie útil a calefaccionar (en m²)?"
-```
-
-**Paso 3: Superficie**
-```
-Usuario: Ingresa "50"
-Sistema: "¿Qué tipo de pavimento tiene el ambiente?"
-Opciones: ["Cerámica", "Madera", "Alfombra"]
-```
-
-**Paso 4: Tipo de piso**
-```
-Usuario: Selecciona opción 0 (Cerámica)
-Sistema: "¿En qué zona del país se encuentra?"
-Opciones: ["Zona Centro/Norte", "Zona Sur"]
-```
-
-**Paso 5: Zona**
-```
-Usuario: Selecciona opción 1 (Zona Sur)
-Sistema: [Ejecuta cálculos automáticamente]
-```
-
-**Paso 6: Resultado**
-```
-Sistema: "PISO RADIANTE:
-- Superficie: 50 m²
-- Potencia estimada: 6250 W
-- Caños: 250 m
-- Circuitos sugeridos: 3 de hasta 100 m
-
-¿Deseás calcular también RADIADORES para otro ambiente?"
-Opciones: ["Sí", "No"]
-```
-
-### Cálculo de Radiadores
-
-**Paso 1: Objetivo**
-```
-Sistema: "¿Cuál es el principal objetivo para los radiadores?"
-Opciones: ["Calefacción principal", "Complementaria", "Secado de toallas"]
-```
-
-**Paso 2: Dimensiones**
-```
-Usuario: Selecciona "Calefacción principal"
-Sistema: "Indique las dimensiones del ambiente (largo, ancho y alto en metros):"
-Inputs: [largo, ancho, alto]
-```
-
-**Paso 3: Ingreso de dimensiones**
-```
-Usuario: largo=5, ancho=4, alto=2.7
-Sistema: "Nivel de aislación térmica del ambiente:"
-Opciones: ["Alta", "Media", "Baja"]
-```
-
-**Paso 4-7: Preferencias**
-```
-Usuario selecciona:
-- Aislación: "Media"
-- Instalación: "Superficie"
-- Estilo: "Moderno"
-- Color: "Blanco"
-```
-
-**Paso 8: Cálculo y Recomendación**
-```
-Sistema: [Ejecuta cálculos]
-- Volumen = 5 × 4 × 2.7 = 54 m³
-- Carga térmica = 54 × 40 = 2160 kcal/h
-- Filtra modelos compatibles
-
-Sistema: "Basado en tus necesidades, te recomendamos:
-
-1. TROPICAL 500
-   - Potencia efectiva: 185 kcal/h
-   - Módulos estimados: 12
-   - Descripción: Radiador de aluminio de alta eficiencia
-   - Colores disponibles: blanco, negro
-
-2. BROEN 500
-   - Potencia efectiva: 185 kcal/h
-   - Módulos estimados: 12
-   - Descripción: Radiador de acero con diseño moderno
-   - Colores disponibles: blanco, cromo
-
-3. GAMMA 500
-   - Potencia efectiva: 172 kcal/h
-   - Módulos estimados: 13
-   - Descripción: Radiador de aluminio estilo minimalista
-   - Colores disponibles: blanco, negro"
-```
-
-## 🛠️ Personalización
-
-### Agregar Nuevos Nodos
-Edita `app/peisa_advisor_knowledge_base.json`:
-```json
-{
-  "id": "nuevo_nodo",
-  "pregunta": "Tu pregunta aquí",
-  "opciones": [
-    { "texto": "Opción 1", "siguiente": "siguiente_nodo" }
-  ]
-}
-```
-
-### Agregar Nuevos Modelos de Radiadores
-Edita `app/models.py`:
-```python
-RADIATOR_MODELS = {
-    "NUEVO_MODELO": {
-        "type": "principal",
-        "installation": "superficie",
-        "style": "moderno",
-        "potencia": 200,
-        "coeficiente": 1.0,
-        "colors": ["blanco", "negro"],
-        "description": "Descripción del modelo"
-    }
-}
-```
-
-### Modificar Parámetros de Cálculo
-En `peisa_advisor_knowledge_base.json`, nodo de cálculo:
-```json
-{
-  "id": "calculo_piso_radiante",
-  "tipo": "calculo",
-  "parametros": {
-    "potencia_m2": { "norte": 100, "sur": 125 },  // Modificar aquí
-    "densidad_caño": 5,  // Metros de caño por m²
-    "longitud_maxima_circuito": 100  // Metros máximos por circuito
-  }
-}
-```
-
-## 🐛 Troubleshooting
-
-### Error: "Sistema no inicializado"
-**Causa**: Los motores no se inicializaron correctamente al arrancar el servidor.
-
-**Solución**:
-1. Verifica que todos los archivos existan:
-   - `app/peisa_advisor_knowledge_base.json`
-   - `app/expert_engine.py`
-   - `app/rag_engine_v2.py`
-   - `embeddings/products.faiss`
-2. Reinicia el servidor
-3. Revisa los logs de inicio en la consola
-
-### Error: "Nodo no encontrado"
-**Causa**: El ID del nodo no existe en la base de conocimiento.
-
-**Solución**:
-1. Abre `app/peisa_advisor_knowledge_base.json`
-2. Verifica que el `id` del nodo sea correcto
-3. Verifica que todos los nodos `siguiente` apunten a IDs válidos
-
-### Error: "RAG Engine no inicializado"
-**Causa**: El sistema RAG no pudo cargar los embeddings.
-
-**Solución**:
-```bash
-# Regenerar embeddings
-python ingest/ingest.py
-```
-
-### Error en cálculos: "Error evaluando expresión"
-**Causa**: Error en la sintaxis de las expresiones de cálculo.
-
-**Solución**:
-1. Revisa las expresiones en nodos tipo `calculo`
-2. Verifica que las variables referenciadas existan en el contexto
-3. Ejemplo correcto:
-   ```json
-   "acciones": [
-     "carga_termica = superficie * potencia_m2[zona_geografica]"
-   ]
-   ```
-
-### Error: "Por favor ingrese valores numéricos válidos"
-**Causa**: El usuario ingresó texto en un campo numérico.
-
-**Solución**: El sistema maneja esto automáticamente, mostrando el mensaje de error al usuario.
-
-### Puerto 8000 ya en uso
-**Causa**: Otra aplicación está usando el puerto 8000.
-
-**Solución**:
-```bash
-# Opción 1: Usar otro puerto
-python -m uvicorn app.main:app --reload --port 8001
-
-# Opción 2: Matar el proceso en el puerto 8000 (Windows)
-netstat -ano | findstr :8000
-taskkill /PID <PID> /F
-```
-
-## 📚 Estructura de Archivos
-
-```
-pp2-soldasur-2c-2025/
-├── app/
-│   ├── main.py                              # Servidor FastAPI principal
-│   ├── expert_engine.py                     # Motor del sistema experto
-│   ├── orchestrator.py                      # Orquestador híbrido
-│   ├── rag_engine_v2.py                     # Motor RAG
-│   ├── models.py                            # Modelos de radiadores
-│   ├── peisa_advisor_knowledge_base.json    # Base de conocimiento
-│   ├── soldasur2025.html                    # Interfaz web
-│   ├── soldasur.js                          # Lógica frontend
-│   └── soldasur.css                         # Estilos
-├── embeddings/
-│   └── products.faiss                       # Índice vectorial
-├── data/
-│   ├── products_catalog.json                # Catálogo de productos
-│   └── raw/Products_db.xlsx                 # Base de datos original
-├── docs/
-│   ├── SISTEMA_EXPERTO.md                   # Esta documentación
-│   └── README_RAG_OLLAMA.md                 # Documentación RAG
-└── requirements.txt                         # Dependencias Python
-```
-
-## 💡 Ventajas del Sistema Experto
-
-✅ **Guía estructurada**: Paso a paso sin confusión  
-✅ **Cálculos precisos**: Fórmulas validadas por expertos  
-✅ **Personalización**: Recomendaciones basadas en preferencias  
-✅ **Escalable**: Fácil agregar nuevos flujos y productos  
-✅ **Híbrido**: Combina reglas con IA generativa  
-✅ **Trazabilidad**: Historial completo de decisiones  
-✅ **Sin entrenamiento**: No requiere datos de entrenamiento  
-✅ **Determinístico**: Resultados predecibles y consistentes  
-
-## 🎓 Conceptos Técnicos
-
-### Sistema Basado en Reglas
-El sistema experto usa **reglas IF-THEN** implícitas en la estructura de nodos:
-```
-IF usuario selecciona "Piso radiante"
-THEN ir a nodo "superficie_piso"
-
-IF zona == "sur" AND superficie == 50
-THEN carga_termica = 50 * 125 = 6250 W
-```
-
-### Motor de Inferencia
-El `ExpertEngine` actúa como motor de inferencia:
-1. **Evalúa condiciones**: Opciones seleccionadas, valores ingresados
-2. **Aplica reglas**: Navegación entre nodos según decisiones
-3. **Ejecuta acciones**: Cálculos matemáticos automáticos
-4. **Actualiza base de hechos**: Contexto de variables persistente
-
-### Base de Conocimiento
-Estructura JSON que representa el conocimiento del dominio:
-- **Nodos**: Puntos de decisión o información
-- **Aristas**: Transiciones entre nodos (campo `siguiente`)
-- **Variables**: Hechos almacenados durante la conversación
-- **Reglas**: Implícitas en las opciones y cálculos
-
-### Integración RAG
-El sistema puede enriquecerse con RAG para:
-- **Explicar conceptos**: "¿Qué es la carga térmica?"
-- **Buscar productos**: "Muéstrame radiadores blancos"
-- **Responder tangencialmente**: Preguntas durante el flujo
-- **Información adicional**: Complementar respuestas del experto
-
-### Clasificación de Intenciones
-El `IntentClassifier` usa patrones regex para determinar:
-- **GUIDED_CALCULATION**: Usuario quiere flujo guiado
-- **FREE_QUERY**: Usuario hace pregunta abierta
-- **PRODUCT_SEARCH**: Usuario busca productos
-- **CLARIFICATION**: Usuario pide aclaración
-- **SWITCH_MODE**: Usuario cambia de modo
-- **HYBRID**: Combinación de intenciones
-
-## 🔧 Configuración Avanzada
-
-### Variables de Entorno
-Crea un archivo `.env` en la raíz:
-```env
-# Puerto del servidor
-PORT=8000
-
-# Modo de debug
-DEBUG=True
-
-# Ruta a base de conocimiento
-KNOWLEDGE_BASE_PATH=app/peisa_advisor_knowledge_base.json
-
-# Configuración RAG
-EMBEDDINGS_PATH=embeddings/products.faiss
-PRODUCTS_CATALOG=data/products_catalog.json
-```
-
-### Logging
-Configura logging en `app/main.py`:
-```python
-import logging
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-```
-
-### CORS (para desarrollo frontend)
-En `app/main.py`:
-```python
-from fastapi.middleware.cors import CORSMiddleware
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-```
-
-## 📊 Métricas y Monitoreo
-
-### Endpoint de Métricas
-```python
-@app.get("/metrics")
-async def get_metrics():
-    return {
-        "total_conversations": len(orchestrator.contexts),
-        "active_conversations": sum(1 for c in orchestrator.contexts.values() 
-                                   if c.session_metadata['interaction_count'] > 0),
-        "expert_mode_usage": sum(1 for c in orchestrator.contexts.values() 
-                                if c.mode == "expert"),
-        "rag_mode_usage": sum(1 for c in orchestrator.contexts.values() 
-                             if c.mode == "rag")
-    }
-```
-
-## 🧪 Testing
-
-### Test Manual con cURL
-```bash
-# Iniciar conversación
-curl -X POST http://localhost:8000/start \
-  -H "Content-Type: application/json" \
-  -d '{"conversation_id": "test123", "mode": "expert"}'
-
-# Enviar respuesta
-curl -X POST http://localhost:8000/reply \
-  -H "Content-Type: application/json" \
-  -d '{"conversation_id": "test123", "option_index": 0}'
-
-# Health check
-curl http://localhost:8000/health
-```
-
-### Test con Python
-```python
-import requests
-
-# Iniciar conversación
-response = requests.post("http://localhost:8000/start", json={
-    "conversation_id": "test123",
-    "mode": "expert"
-})
-print(response.json())
-
-# Seleccionar opción
-response = requests.post("http://localhost:8000/reply", json={
-    "conversation_id": "test123",
-    "option_index": 0
-})
-print(response.json())
-```
-
-## 🚀 Despliegue en Producción
-
-### Usando Gunicorn
-```bash
-pip install gunicorn
-gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
-```
-
-### Usando Docker
-```dockerfile
-FROM python:3.9-slim
-
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
-
-```bash
-docker build -t peisa-advisor .
-docker run -p 8000:8000 peisa-advisor
-```
-
-## 📖 Referencias
-
-- **FastAPI**: https://fastapi.tiangolo.com/
-- **Uvicorn**: https://www.uvicorn.org/
-- **Jinja2**: https://jinja.palletsprojects.com/
-- **Sistema Experto (Wikipedia)**: https://es.wikipedia.org/wiki/Sistema_experto
+# Sistema Experto de Calefacción PEISA - SOLDASUR S.A.
+
+## Índice
+1. [Arquitectura General](#arquitectura-general)
+2. [Cálculo de Piso Radiante](#cálculo-de-piso-radiante)
+3. [Cálculo de Radiadores](#cálculo-de-radiadores)
+4. [Cálculo de Calderas](#cálculo-de-calderas)
+5. [Ubicación de Archivos](#ubicación-de-archivos)
 
 ---
 
-**Desarrollado por**: SOLDASUR S.A.  
-**Versión**: 2.0  
-**Última actualización**: 2025
+## Arquitectura General
 
-**¿Necesitas ayuda?** Consulta los logs del servidor o revisa la documentación adicional en `docs/`
+El sistema experto funciona mediante un **motor de reglas basado en grafos de decisión** implementado en Python con FastAPI. El flujo de conversación está definido en un archivo JSON que contiene nodos con diferentes tipos de acciones.
+
+### Componentes Principales:
+- **Base de conocimiento**: `peisa_advisor_knowledge_base.json`
+- **Motor de cálculo**: `app.py`
+- **Modelos de productos**: `models.py`
+- **API REST**: `main.py`
+
+---
+
+## Cálculo de Piso Radiante
+
+### Ubicación del Código
+- **Archivo de configuración**: `app/peisa_advisor_knowledge_base.json` (nodos: `superficie_piso`, `tipo_piso`, `zona_geografica`, `calculo_piso_radiante`)
+- **Motor de cálculo**: `app/app.py` (función `perform_calculation()`)
+
+### Flujo de Cálculo
+
+#### 1. Entrada de Datos
+El sistema solicita al usuario:
+- **Superficie útil** (m²) a calefaccionar
+- **Tipo de pavimento**: Cerámica/Mármol, Madera/Parquet, o Alfombra
+- **Zona geográfica**: Centro/Norte o Sur
+
+#### 2. Parámetros de Cálculo
+```json
+"parametros": {
+  "potencia_m2": { 
+    "norte": 100,  // W/m²
+    "sur": 125     // W/m²
+  },
+  "densidad_caño": 5,              // metros de caño por m²
+  "longitud_maxima_circuito": 100  // metros máximos por circuito
+}
+```
+
+#### 3. Fórmulas Aplicadas
+
+**Carga térmica total:**
+```python
+carga_termica = superficie * potencia_m2[zona_geografica]
+```
+- Zona Norte/Centro: 100 W/m²
+- Zona Sur: 125 W/m² (mayor demanda por clima más frío)
+
+**Longitud total de caños:**
+```python
+longitud_total = superficie * densidad_caño
+```
+- Se utilizan 5 metros de caño por cada m² de superficie
+
+**Número de circuitos:**
+```python
+circuitos = ceil(longitud_total / longitud_maxima_circuito)
+```
+- Cada circuito no debe superar los 100 metros para mantener presión adecuada
+- Se redondea hacia arriba para asegurar cobertura completa
+
+#### 4. Resultado
+El sistema devuelve:
+- Superficie total
+- Potencia estimada en Watts
+- Longitud total de caños necesarios
+- Cantidad de circuitos sugeridos
+
+### Ejemplo de Cálculo
+Para un ambiente de **50 m²** en **Zona Sur**:
+- Carga térmica: 50 × 125 = **6,250 W**
+- Longitud de caños: 50 × 5 = **250 m**
+- Circuitos: ceil(250 / 100) = **3 circuitos**
+
+---
+
+## Cálculo de Radiadores
+
+### Ubicación del Código
+- **Base de conocimiento**: `app/peisa_advisor_knowledge_base.json` (nodos: `objetivo_radiadores`, `dimensiones_radiador`, `nivel_aislacion`, `recomendar_modelos`)
+- **Modelos de productos**: `app/models.py` (diccionario `RADIATOR_MODELS`)
+- **Funciones de filtrado**: `app/app.py` (funciones `filter_radiators()`, `format_radiator_recommendations()`)
+
+### Flujo de Cálculo
+
+#### 1. Entrada de Datos
+El sistema recopila:
+- **Dimensiones del ambiente**: largo, ancho y alto (metros)
+- **Nivel de aislación térmica**: Alta, Media o Baja
+- **Preferencias de diseño**:
+  - Tipo de instalación: Empotrada, Superficie o Sin preferencia
+  - Estilo: Moderno/Minimalista, Clásico/Tradicional o Sin preferencia
+  - Color: Blanco, Negro, Cromo o Sin preferencia
+- **Objetivo**: Calefacción principal, complementaria o toallero
+
+#### 2. Cálculo de Carga Térmica
+
+**Volumen del ambiente:**
+```python
+volumen = largo * ancho * alto  // m³
+```
+
+**Carga térmica según aislación:**
+```python
+if nivel_aislacion == 'baja':
+    factor = 50  # kcal/h por m³
+elif nivel_aislacion == 'media':
+    factor = 40  # kcal/h por m³
+else:  # alta
+    factor = 30  # kcal/h por m³
+
+carga_termica = volumen * factor
+```
+
+Los factores reflejan:
+- **Baja aislación (50 kcal/h·m³)**: Sin doble vidrio, paredes sin aislar
+- **Media aislación (40 kcal/h·m³)**: Vidrio simple, aislación parcial
+- **Alta aislación (30 kcal/h·m³)**: Doble vidrio, paredes aisladas
+
+#### 3. Filtrado de Modelos
+
+El sistema filtra los radiadores según:
+
+```python
+def filter_radiators(radiator_type, installation, style, color, heat_load):
+    # 1. Filtrar por tipo (principal, complementaria, toallero)
+    # 2. Filtrar por instalación (empotrada, superficie)
+    # 3. Filtrar por estilo (moderno, clasico)
+    # 4. Filtrar por color (blanco, negro, cromo)
+    # 5. Ordenar por mejor ajuste a la carga térmica
+```
+
+#### 4. Modelos Disponibles
+
+Cada modelo tiene:
+- **Coeficiente**: Factor multiplicador de potencia base
+- **Potencia base**: 185 kcal/h por módulo (632 kcal/h para toalleros)
+
+**Ejemplos de modelos:**
+
+| Modelo | Coeficiente | Potencia Efectiva | Tipo | Instalación |
+|--------|-------------|-------------------|------|-------------|
+| TROPICAL 350 | 0.75 | 139 kcal/h | Principal | Superficie |
+| TROPICAL 500 | 1.0 | 185 kcal/h | Principal | Superficie |
+| TROPICAL 600 | 1.16 | 215 kcal/h | Principal | Superficie |
+| BROEN 350 | 0.75 | 139 kcal/h | Principal/Complementaria | Superficie |
+| BROEN 500 | 1.0 | 185 kcal/h | Principal/Complementaria | Superficie |
+| BROEN 600 | 1.16 | 215 kcal/h | Principal/Complementaria | Superficie |
+| BROEN PLUS 700 | 1.27 | 235 kcal/h | Principal/Complementaria | Empotrada/Superficie |
+| BROEN PLUS 800 | 1.4 | 259 kcal/h | Principal/Complementaria | Empotrada/Superficie |
+| BROEN PLUS 1000 | 1.65 | 305 kcal/h | Principal/Complementaria | Empotrada/Superficie |
+| GAMMA 500 | 0.93 | 172 kcal/h | Complementaria | Superficie |
+| TOALLERO SCALA | N/A | 632 kcal/h | Toallero | Superficie |
+
+#### 5. Cálculo de Módulos
+
+**Potencia efectiva por módulo:**
+```python
+potencia_efectiva = potencia_base * coeficiente
+```
+
+**Módulos necesarios:**
+```python
+modulos = ceil(carga_termica / potencia_efectiva)
+```
+
+Se redondea hacia arriba para garantizar calefacción suficiente.
+
+#### 6. Recomendación
+
+El sistema presenta los **3 mejores modelos** ordenados por:
+1. Cumplimiento de preferencias (tipo, instalación, estilo, color)
+2. Mejor ajuste a la carga térmica calculada
+
+Para cada modelo muestra:
+- Nombre del modelo
+- Potencia efectiva por módulo
+- Módulos estimados necesarios
+- Descripción del producto
+- Colores disponibles
+
+### Ejemplo de Cálculo
+
+Para un ambiente de **4m × 3m × 2.5m** con **aislación media**:
+
+1. **Volumen**: 4 × 3 × 2.5 = **30 m³**
+2. **Carga térmica**: 30 × 40 = **1,200 kcal/h**
+3. Si se elige **BROEN 500** (185 kcal/h):
+   - Módulos: ceil(1,200 / 185) = **7 módulos**
+
+---
+
+## Cálculo de Calderas
+
+### Nota Importante
+El sistema actual **no incluye cálculo automático de calderas**. Sin embargo, la lógica sería:
+
+### Criterios de Selección (Propuesta)
+
+**Potencia total requerida:**
+```python
+potencia_total_caldera = suma_cargas_termicas_todos_ambientes * factor_seguridad
+```
+
+Donde:
+- `factor_seguridad` = 1.2 (20% adicional para pérdidas y arranque)
+
+**Tipo de caldera según uso:**
+- **Solo calefacción**: Caldera estándar
+- **Calefacción + ACS (Agua Caliente Sanitaria)**: Caldera mixta o con acumulador
+
+**Ubicación sugerida:**
+El cálculo de calderas podría agregarse en:
+- **Archivo**: `app/peisa_advisor_knowledge_base.json`
+- **Nuevo nodo**: `"id": "calculo_caldera"`
+- **Función**: Nueva función en `app/app.py` llamada `calculate_boiler()`
+
+### Implementación Sugerida
+
+```python
+def calculate_boiler(total_heat_load, has_hot_water=False):
+    """
+    Calcula la potencia de caldera necesaria
+    
+    Args:
+        total_heat_load: Carga térmica total en kcal/h
+        has_hot_water: Si requiere agua caliente sanitaria
+    
+    Returns:
+        Potencia de caldera recomendada en kcal/h
+    """
+    safety_factor = 1.2
+    hot_water_extra = 5000 if has_hot_water else 0  # kcal/h adicionales para ACS
+    
+    required_power = (total_heat_load * safety_factor) + hot_water_extra
+    
+    # Redondear a potencias estándar: 18000, 24000, 30000, 35000 kcal/h
+    standard_powers = [18000, 24000, 30000, 35000, 45000]
+    
+    for power in standard_powers:
+        if power >= required_power:
+            return power
+    
+    return standard_powers[-1]  # Máxima potencia si excede
+```
+
+---
+
+## Ubicación de Archivos
+
+### Estructura del Proyecto
+
+```
+proyecto_pp2/
+│
+├── app/
+│   ├── __init__.py                          # Inicialización del módulo
+│   ├── app.py                               # Motor de cálculo y lógica de negocio
+│   ├── main.py                              # API REST con FastAPI
+│   ├── models.py                            # Base de datos de radiadores
+│   ├── llm_wrapper.py                       # Wrapper para LLM (consultas adicionales)
+│   ├── chat.html                            # Interfaz web del chatbot
+│   └── peisa_advisor_knowledge_base.json    # Base de conocimiento (grafo de decisión)
+│
+├── query/
+│   └── query.py                             # Motor de búsqueda semántica
+│
+├── ingest/
+│   └── ingest.py                            # Ingesta de documentos para RAG
+│
+├── requirements.txt                          # Dependencias Python
+└── EXPLICACION.md                           # Este archivo
+```
+
+### Descripción de Archivos Clave
+
+#### `app/peisa_advisor_knowledge_base.json`
+- **Propósito**: Define el flujo conversacional completo
+- **Contenido**: Nodos con preguntas, opciones, cálculos y respuestas
+- **Tipos de nodos**:
+  - `pregunta`: Solicita información al usuario
+  - `entrada_usuario`: Captura valores numéricos
+  - `calculo`: Ejecuta fórmulas matemáticas
+  - `respuesta`: Muestra resultados
+
+#### `app/models.py`
+- **Propósito**: Base de datos de productos (radiadores)
+- **Contenido**: Diccionario `RADIATOR_MODELS` con especificaciones técnicas
+- **Campos por modelo**:
+  - `type`: Tipo de uso (principal, complementaria, toallero)
+  - `installation`: Tipo de instalación (superficie, empotrada)
+  - `style`: Estilo de diseño (moderno, clasico)
+  - `colors`: Colores disponibles
+  - `coeficiente`: Factor multiplicador de potencia
+  - `potencia`: Potencia base en kcal/h
+  - `description`: Descripción del producto
+
+#### `app/app.py`
+- **Propósito**: Motor de cálculo y funciones auxiliares
+- **Funciones principales**:
+  - `perform_calculation()`: Ejecuta cálculos definidos en nodos
+  - `exec_expression()`: Evalúa expresiones matemáticas
+  - `filter_radiators()`: Filtra modelos según preferencias
+  - `format_radiator_recommendations()`: Formatea recomendaciones
+  - `replace_variables()`: Reemplaza variables en textos con Jinja2
+
+#### `app/main.py`
+- **Propósito**: API REST y endpoints
+- **Endpoints**:
+  - `POST /start`: Inicia una conversación
+  - `POST /reply`: Procesa respuestas del usuario
+  - `GET /health`: Verifica estado del servicio
+  - `GET /ask`: Consulta con LLM (búsqueda semántica)
+  - `GET /`: Sirve la interfaz web
+
+#### `app/chat.html`
+- **Propósito**: Interfaz de usuario web
+- **Funcionalidad**: Chatbot interactivo que consume la API REST
+
+---
+
+## Flujo de Ejecución
+
+### 1. Inicio de Conversación
+```
+Usuario → POST /start → Carga nodo "inicio" → Muestra opciones
+```
+
+### 2. Navegación por Nodos
+```
+Usuario selecciona opción → POST /reply → 
+  ├─ Si es entrada_usuario: Guarda valores en contexto
+  ├─ Si es pregunta: Muestra siguiente pregunta
+  ├─ Si es calculo: Ejecuta fórmulas y avanza
+  └─ Si es respuesta: Muestra resultado
+```
+
+### 3. Contexto de Conversación
+Cada conversación mantiene:
+```python
+conversations[conversation_id] = {
+    'current_node': 'id_del_nodo_actual',
+    'context': {
+        'superficie': 50,
+        'zona_geografica': 'sur',
+        'largo': 4,
+        'ancho': 3,
+        'alto': 2.5,
+        'carga_termica': 1200,
+        # ... más variables calculadas
+    }
+}
+```
+
+### 4. Ejecución de Cálculos
+```python
+# En nodo de tipo "calculo"
+for action in node["acciones"]:
+    exec_expression(action, context)
+    
+# Ejemplo de acción:
+"carga_termica = volumen * (50 if nivel_aislacion == 'baja' else 40 if nivel_aislacion == 'media' else 30)"
+```
+
+---
+
+## Ventajas del Sistema
+
+1. **Modular**: Fácil agregar nuevos productos o modificar cálculos
+2. **Declarativo**: La lógica está en JSON, no hardcodeada
+3. **Extensible**: Se pueden agregar nuevos tipos de nodos
+4. **Mantenible**: Separación clara entre datos, lógica y presentación
+5. **Interactivo**: Guía al usuario paso a paso
+
+---
+
+## Mejoras Futuras
+
+1. **Cálculo de calderas**: Implementar selección automática de calderas
+2. **Validaciones**: Agregar rangos válidos para entradas numéricas
+3. **Persistencia**: Guardar conversaciones en base de datos
+4. **Exportación**: Generar PDF con presupuesto y especificaciones
+5. **Integración**: Conectar con sistema de inventario y precios
+6. **Visualización**: Mostrar planos o esquemas de instalación
+
+---
+
+## Contacto y Soporte
+
+**SOLDASUR S.A.**  
+Sistema desarrollado para asesoramiento en calefacción PEISA  
+Versión: 1.0

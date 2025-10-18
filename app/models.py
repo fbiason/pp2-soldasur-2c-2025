@@ -96,6 +96,7 @@ RADIATOR_MODELS = {
         "style": "moderno",
         "colors": ["blanco", "cromo"],
         "potencia": 632,
+        "coeficiente": 1.0,  # Los toalleros no usan coeficiente, pero se mantiene para compatibilidad
         "description": "Especial para baños, mantiene toallas secas y calientes"
     }
 }

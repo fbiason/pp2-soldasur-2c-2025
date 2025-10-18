@@ -19,6 +19,29 @@
         }
         @keyframes spin { to { transform: rotate(360deg); } }
         
+        /* Mensaje de "pensando" */
+        #thinking-indicator {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            border: none !important;
+            animation: pulse 2s ease-in-out infinite !important;
+        }
+        
+        #thinking-indicator .thinking-text {
+            font-weight: 500;
+            font-style: italic;
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.9;
+                transform: scale(1.02);
+            }
+        }
+        
         /* Indicadores de modo */
         .mode-indicator {
             display: inline-flex;
@@ -304,10 +327,39 @@
             z-index: 999;
             display: none;
             animation: slideUp 0.3s ease-out;
+            transition: all 0.3s ease-in-out;
         }
         
         .chat-container-wrapper.active {
             display: block;
+        }
+        
+        /* Estado maximizado */
+        .chat-container-wrapper.maximized {
+            top: 20px;
+            right: 20px;
+            bottom: 130px;  /* Espacio para la cabeza de Soldy (100px + margen) */
+            left: 20px;
+            width: auto !important;
+            height: auto !important;
+            max-width: none !important;
+            max-height: none !important;
+            animation: maximize 0.3s ease-out;
+        }
+        
+        @keyframes maximize {
+            from {
+                top: auto;
+                left: auto;
+                width: 400px;
+                height: 600px;
+            }
+            to {
+                top: 20px;
+                right: 20px;
+                bottom: 130px;
+                left: 20px;
+            }
         }
         
         @keyframes slideUp {
@@ -359,11 +411,6 @@
             }
         }
         
-        /* Ajustar posición del chat para que no tape a Soldy */
-        .chat-container-wrapper {
-            bottom: 100px !important;
-        }
-        
         /* Botones del header */
         #back-button:hover,
         .chat-container-wrapper button:hover {
@@ -377,6 +424,13 @@
                 height: calc(100vh - 120px);
                 right: 16px;
                 bottom: 90px;
+            }
+            
+            .chat-container-wrapper.maximized {
+                top: 10px;
+                right: 10px;
+                bottom: 110px;  /* Espacio para la cabeza de Soldy en móviles (80px + margen) */
+                left: 10px;
             }
             
             .chat-button {
