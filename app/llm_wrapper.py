@@ -1,5 +1,6 @@
 # app/llm_wrapper.py - Wrapper mejorado para Ollama con Mistral
 import ollama
+import os
 from typing import List, Dict, Optional
 import json
 
@@ -8,6 +9,13 @@ class OllamaLLM:
     
     def __init__(self, model: str = "llama3.2:3b"):
         self.model = model
+        # Configurar host de Ollama; respeta OLLAMA_HOST si está definida
+        self.ollama_host = os.getenv('OLLAMA_HOST', 'http://127.0.0.1:11434')
+        try:
+            self.client = ollama.Client(host=self.ollama_host)
+        except Exception:
+            # Fallback simple al módulo si falla la creación del cliente
+            self.client = None
         self.system_prompt = """Eres Soldy, asistente de ventas experto en calefacción de PEISA - SOLDASUR S.A.
 
 Tu objetivo principal es ORIENTAR AL CLIENTE HACIA UNA VENTA:
@@ -22,6 +30,7 @@ Directrices de venta:
 ✓ Usa el catálogo proporcionado para recomendar
 ✓ Destaca ventajas competitivas de los productos
 ✓ Sé preciso con especificaciones técnicas
+✓ PROHIBIDO mencionar precios, montos, costos, promociones o cuotas (si preguntan, responder "precio a consultar" y sugerir contacto comercial)
 ✗ No des respuestas genéricas sin productos
 ✗ No inventes datos técnicos
 ✗ No recomiendes productos fuera del catálogo
@@ -32,7 +41,13 @@ FORMATO DE RESPUESTA (OBLIGATORIO - NO EXCEDER):
 - SIEMPRE incluye el nombre de al menos 1 producto
 - Ve directo a la recomendación de venta
 - NO des explicaciones largas
-- Sé EXTREMADAMENTE conciso"""
+- Sé EXTREMADAMENTE conciso
+ - TERMINA SIEMPRE CON PUNTO FINAL (.)"""
+
+        # CTA opcional desde variable de entorno
+        self.contact_cta = os.getenv('SOLDASUR_CONTACT_CTA')
+        if self.contact_cta:
+            self.system_prompt += f"\nContacto comercial: {self.contact_cta}"
     
     def generate(self, 
                  question: str, 
@@ -49,22 +64,31 @@ FORMATO DE RESPUESTA (OBLIGATORIO - NO EXCEDER):
             max_tokens: Máximo de tokens en la respuesta
         """
         try:
+            # Si preguntan por precio, responder sin pasar por el LLM
+            if self._is_price_question(question):
+                safe = self._price_refusal_response(context)
+                return self._ensure_final_period(safe)
+
             # Construir el prompt con contexto
             prompt = self._build_prompt(question, context)
             
             # Llamar a Ollama con control ESTRICTO de longitud
-            response = ollama.generate(
+            # Usar cliente si está disponible; si no, usar API global
+            generate_fn = self.client.generate if self.client else ollama.generate
+            response = generate_fn(
                 model=self.model,
                 prompt=prompt,
                 system=self.system_prompt,
                 options={
                     'temperature': temperature,
-                    'num_predict': max_tokens,  # LÍMITE DURO: máximo 30 tokens
-                    'top_p': 0.7,  # Muy reducido para respuestas determinísticas
-                    'top_k': 20,  # Muy bajo para máximo control
+                    # Límite estricto solicitado (por defecto 30)
+                    'num_predict': max_tokens,
+                    'top_p': 0.7,  # Bajo para respuestas determinísticas
+                    'top_k': 20,  # Bajo para máximo control
                     'repeat_penalty': 1.3,  # Penaliza fuertemente repeticiones
                     'num_ctx': 1024,  # Contexto muy limitado
-                    'stop': ['.', '\n', '?', '!', 'Por ejemplo', 'También', 'Además', 'Si']  # Detiene en puntuación y conectores
+                    # No cortar en mitad de la frase por puntuación; parar al primer salto de línea
+                    'stop': ['\n']
                 }
             )
             
@@ -72,6 +96,10 @@ FORMATO DE RESPUESTA (OBLIGATORIO - NO EXCEDER):
             
             # POST-PROCESAMIENTO: Truncar a primera oración completa
             answer = self._truncate_to_brief(answer)
+            # Sanitizar menciones de precios
+            answer = self._sanitize_prices(answer)
+            # Asegurar punto final
+            answer = self._ensure_final_period(answer)
             
             # Log para debugging
             word_count = len(answer.split())
@@ -94,7 +122,7 @@ FORMATO DE RESPUESTA (OBLIGATORIO - NO EXCEDER):
         # Si ya es corto, retornar
         words = text.split()
         if len(words) <= max_words:
-            return text
+            return self._ensure_final_period(text)
         
         # Buscar primer punto, signo de pregunta o exclamación
         for i, char in enumerate(text):
@@ -102,15 +130,77 @@ FORMATO DE RESPUESTA (OBLIGATORIO - NO EXCEDER):
                 sentence = text[:i+1].strip()
                 # Verificar que la oración tenga al menos 10 palabras
                 if len(sentence.split()) >= 10:
-                    return sentence
+                    return self._ensure_final_period(sentence)
         
         # Si no hay puntuación, truncar a max_words
         truncated = ' '.join(words[:max_words])
         # Agregar punto si no termina en puntuación
-        if truncated and truncated[-1] not in ['.', '?', '!']:
-            truncated += '.'
-        
-        return truncated
+        return self._ensure_final_period(truncated)
+
+    def _ensure_final_period(self, text: str) -> str:
+        """Normaliza el cierre: reemplaza ?/! por punto y añade punto si falta.
+        También retira comillas o paréntesis sueltos al final antes de cerrar.
+        """
+        if not text:
+            return text
+        # Quitar espacios y cierres sueltos al final
+        stripped = text.rstrip()
+        # Si termina en ? o !, reemplazar por .
+        if stripped.endswith('?') or stripped.endswith('!'):
+            stripped = stripped[:-1].rstrip()
+        # Quitar comillas o paréntesis finales sueltos antes de puntuar
+        while stripped and stripped[-1] in ['"', '”', '’', "'", ')', ']']:
+            stripped = stripped[:-1].rstrip()
+        # Asegurar punto final
+        if not stripped.endswith('.'):
+            stripped += '.'
+        return stripped
+
+    def _sanitize_prices(self, text: str) -> str:
+        """Reemplaza patrones de precios/montos por 'precio a consultar'.
+        Cubre $ 1.234,56 | $1234 | 1.234.567 | 1234,56 | AR$ | USD | U$S, evitando números técnicos (W, kW, V, mm, cm, %).
+        """
+        import re
+        if not text:
+            return text
+        # Sólo considerar montos con contexto monetario
+        currency = r"(?:AR\$|U\$S|US\$|USD|EUR|€|\$)"
+        amount   = r"\d{1,3}(?:[\.,]\d{3})*(?:[\.,]\d{2})?"
+        units_exclusion = r"(?!\s*(W|kW|V|mm|cm|m|°C|%|kg|m²|m3)\b)"
+        word_currency = r"(?:ars|pesos?|usd|dólares?|euros?)"
+
+        patterns = [
+            rf"\b{currency}\s*{amount}{units_exclusion}\b",
+            rf"\b{amount}\s*{word_currency}{units_exclusion}\b",
+            rf"\b(precio|costo|vale|sale|cuesta|presupuesto)\s*(aprox\.?|aproximado|estimado|es|:)?\s*{currency}?\s*{amount}{units_exclusion}\b",
+        ]
+        sanitized = text
+        for p in patterns:
+            sanitized = re.sub(p, 'precio a consultar', sanitized, flags=re.IGNORECASE)
+        return sanitized
+
+    def _is_price_question(self, text: str) -> bool:
+        """Detecta si el usuario está preguntando por precios o costos."""
+        if not text:
+            return False
+        t = text.lower()
+        keywords = [
+            'precio', 'precios', 'costo', 'costos', 'presupuesto', 'cuesta', 'vale', 'sale',
+            'descuento', 'promoción', 'promocion', 'oferta', 'cuotas', 'financiación', 'financiacion',
+            'usd', 'u$s', 'u$s', 'ar$', '$', '€', 'eur'
+        ]
+        return any(k in t for k in keywords)
+
+    def _price_refusal_response(self, context: Optional[List[Dict]] = None) -> str:
+        """Respuesta estándar cuando se consultan precios."""
+        if context:
+            products = ", ".join([p.get('model', 'N/A') for p in context[:2]])
+            base = f"No informamos precios por este medio; te recomiendo {products} y el precio es a consultar."
+        else:
+            base = "No informamos precios por este medio; el precio es a consultar con nuestro equipo comercial."
+        if self.contact_cta:
+            base += f" Contacto: {self.contact_cta}."
+        return self._ensure_final_period(base)
     
     def _build_prompt(self, question: str, context: Optional[List[Dict]] = None) -> str:
         """Construye el prompt con contexto del catálogo"""
@@ -155,7 +245,8 @@ FORMATO DE RESPUESTA (OBLIGATORIO - NO EXCEDER):
             messages: Lista de mensajes [{"role": "user/assistant", "content": "..."}]
         """
         try:
-            response = ollama.chat(
+            chat_fn = self.client.chat if self.client else ollama.chat
+            response = chat_fn(
                 model=self.model,
                 messages=messages
             )
