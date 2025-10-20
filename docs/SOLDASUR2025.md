@@ -672,19 +672,19 @@ function detectMentionedProducts(message) {
 
 **Tres modos de interacción:**
 
-1. **🤖 Guíame en un cálculo**
+1. **Guíame en un cálculo**
    - Flujo guiado paso a paso (sistema experto)
    - Cálculo de carga térmica
    - Recomendación de productos según tipo seleccionado
    - Panel de contexto con datos ingresados
 
-2. **💬 Tengo una pregunta**
+2. **Tengo una pregunta**
    - Chat libre con OpenAI GPT-4
    - Respuestas contextualizadas con catálogo de productos
    - Detección automática y visualización de productos relevantes
    - Historial de conversación mantenido
 
-3. **📦 Buscar productos**
+3. **Buscar productos**
    - Navegación por categorías
    - Visualización de productos por familia
    - Opción "Ver todos" con productos destacados

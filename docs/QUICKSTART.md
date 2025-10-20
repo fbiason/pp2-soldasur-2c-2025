@@ -70,7 +70,7 @@ Abrir en el navegador: http://localhost:8000/soldasur2025.html
 
 ### 2. Elegir modo de interacción
 
-#### 🤖 Guíame en un cálculo
+####  Guíame en un cálculo
 **Cuándo usar:** Necesitas calcular la calefacción para un espacio
 
 **Flujo:**

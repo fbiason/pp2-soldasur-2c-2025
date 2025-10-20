@@ -35,9 +35,9 @@ Widget de chat flotante estilo chatbot moderno con integración de OpenAI GPT-4 
    - Primera apertura: Inicia conversación automáticamente
 
 2. **Tres Modos de Interacción**
-   - 🤖 Guíame en un cálculo: Flujo paso a paso
-   - 💬 Tengo una pregunta: Chat libre con IA
-   - 📦 Buscar productos: Navegación por categorías
+   -  Guíame en un cálculo: Flujo paso a paso
+   -  Tengo una pregunta: Chat libre con IA
+   -  Buscar productos: Navegación por categorías
 
 3. **Navegación**
    - Botón "Volver": Regresa al menú principal

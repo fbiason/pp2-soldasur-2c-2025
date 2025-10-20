@@ -103,7 +103,7 @@ http://localhost:8000/soldasur2025.html
 
 ## 🎨 Modos de Interacción
 
-### 1. 🤖 Guíame en un cálculo
+### 1.  Guíame en un cálculo
 Flujo estructurado paso a paso:
 1. Tipo de calefacción (Piso radiante / Radiadores / Calderas)
 2. Superficie en m²

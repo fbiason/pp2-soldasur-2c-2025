@@ -1,0 +1,71 @@
+╔═══════════════════════════════════════════════════════════════╗
+║         ESTRUCTURA MODULAR DE SOLDASUR - ORGANIZADA          ║
+╚═══════════════════════════════════════════════════════════════╝
+
+📁 app/
+│
+├── 📂 modules/                    ← NUEVA CARPETA DE MÓDULOS
+│   │
+│   ├── 📂 chatbot/                ← Módulo de Chatbot con IA
+│   │   ├── chatbot.js             (Frontend: Integración Ollama)
+│   │   ├── llm_wrapper.py         (Backend: Wrapper LLM)
+│   │   └── rag_engine_v2.py       (Backend: Motor RAG)
+│   │
+│   ├── 📂 expertSystem/           ← Sistema Experto de Cálculos
+│   │   ├── expertSystem.js        (Frontend: Flujo guiado)
+│   │   └── expert_engine.py       (Backend: Motor de reglas)
+│   │
+│   └── 📂 scraping/               ← Catálogo y Scraping
+│       ├── productCatalog.js      (Frontend: Catálogo PEISA)
+│       └── product_scraper.py     (Backend: Scraper web)
+│
+├── 📄 soldasur.js                 ← Orquestador principal
+├── 📄 soldasur2025.html           ← Interfaz web
+├── 📄 soldasur.css                ← Estilos
+│
+├── 📄 app.py                      ← Aplicación Flask
+├── 📄 main.py                     ← Punto de entrada
+├── 📄 orchestrator.py             ← Orquestador backend
+├── 📄 models.py                   ← Modelos de datos
+│
+├── 📄 README_MODULOS.md           ← Documentación completa
+├── 📄 ESTRUCTURA.txt              ← Este archivo
+│
+├── 📂 cloud/                      ← Configuración cloud
+├── 📂 img/                        ← Imágenes
+└── 📂 __pycache__/                ← Cache Python
+
+═══════════════════════════════════════════════════════════════
+
+🎯 VENTAJAS DE ESTA ORGANIZACIÓN:
+
+✅ Separación clara por funcionalidad
+✅ Archivos JS y Python agrupados por módulo
+✅ Fácil navegación y mantenimiento
+✅ Escalable para nuevas funcionalidades
+✅ Ideal para trabajo en equipo
+
+═══════════════════════════════════════════════════════════════
+
+📋 ORDEN DE CARGA EN HTML:
+
+1. modules/scraping/productCatalog.js
+2. modules/expertSystem/expertSystem.js
+3. modules/chatbot/chatbot.js
+4. soldasur.js (orquestador)
+
+═══════════════════════════════════════════════════════════════
+
+🔧 GUÍA RÁPIDA DE MANTENIMIENTO:
+
+┌─────────────────────────────────────────────────────────────┐
+│ TAREA                    │ ARCHIVO A MODIFICAR              │
+├─────────────────────────────────────────────────────────────┤
+│ Agregar productos        │ modules/scraping/                │
+│ Ajustar cálculos         │ modules/expertSystem/            │
+│ Cambiar chatbot          │ modules/chatbot/                 │
+│ Modificar UI/navegación  │ soldasur.js                      │
+│ Cambiar estilos          │ soldasur.css                     │
+└─────────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════

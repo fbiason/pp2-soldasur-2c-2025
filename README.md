@@ -84,9 +84,9 @@ python -m http.server 8000
 ### Probar
 1. Hacer clic en el botón flotante de Soldy (esquina inferior derecha)
 2. Elegir una opción:
-   - 🤖 **Guíame en un cálculo** - Flujo estructurado
-   - 💬 **Tengo una pregunta** - Chat libre con IA
-   - 📦 **Buscar productos** - Catálogo PEISA
+   -  **Guíame en un cálculo** - Flujo estructurado
+   -  **Tengo una pregunta** - Chat libre con IA
+   -  **Buscar productos** - Catálogo PEISA
 
 ---
 
