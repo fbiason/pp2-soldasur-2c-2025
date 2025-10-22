@@ -11,7 +11,8 @@ Proyecto desarrollado en el marco de **Prácticas Profesionalizantes II – 2° 
 - ✅ **Privacidad total** - Procesamiento en tu máquina
 - ✅ **Costo cero** - Sin gastos por uso
 - ✅ **Modelo:** Llama 3.2 (3B)
-- 📄 [Ver documentación completa](docs/README_STANDALONE_OLLAMA.md)
+- 📄 **[Ver documentación completa del chatbot](docs/CHATBOT_SOLDY.md)** ⭐
+- 📄 [Ver documentación técnica](docs/README_STANDALONE_OLLAMA.md)
 
 ### 🔧 Versión Backend Python (v1.0)
 - Sistema híbrido con backend FastAPI
@@ -87,6 +88,21 @@ python -m http.server 8000
    -  **Guíame en un cálculo** - Flujo estructurado
    -  **Tengo una pregunta** - Chat libre con IA
    -  **Buscar productos** - Catálogo PEISA
+
+---
+
+## 📚 Documentación
+
+### Chatbot Soldy
+- **[📖 Documentación Completa del Chatbot](docs/CHATBOT_SOLDY.md)** - Arquitectura, funcionamiento y configuración
+- **[📊 Cómo Evaluar el Chatbot](docs/COMO_EVALUAR_CHATBOT.md)** - Sistema de métricas y evaluación
+- **[📝 Plantilla de Evaluación](docs/evaluacion_chatbot.md)** - Evaluación manual
+
+### Guías Técnicas
+- **[🚀 Quick Start](docs/QUICKSTART.md)** - Inicio rápido
+- **[🔧 Sistema Experto](docs/SISTEMA_EXPERTO.md)** - Motor de reglas
+- **[📦 Módulos](docs/README_MODULOS.md)** - Estructura modular
+- **[🐍 Entorno Virtual](docs/ENTORNO_VIRTUAL.md)** - Configuración de Python
 
 ---
 
