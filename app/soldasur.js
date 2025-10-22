@@ -118,6 +118,7 @@ function hideBackButton() {
 
 function goBack() {
     resetExpertSystem();
+    // NO resetear el historial del chatbot para mantener contexto
     document.getElementById('chat-container').innerHTML = '';
     startConversation();
     hideBackButton();
@@ -129,6 +130,10 @@ function switchMode(mode) {
     document.getElementById('chat-container').innerHTML = '';
     lastUserResponse = null;
     resetExpertSystem();
+    // Resetear historial del chatbot solo si se cambia explícitamente de modo
+    if (typeof resetChatHistory === 'function') {
+        resetChatHistory();
+    }
     startConversation();
     hideBackButton();
 }

@@ -7,7 +7,15 @@
             font-size: 0.875rem;
         }
         /* Estilos base */
-        .chat-message { max-width: 80%; word-wrap: break-word; }
+        .chat-message { 
+            max-width: 80%; 
+            word-wrap: break-word; 
+            white-space: normal;
+            overflow: visible;
+            text-overflow: unset;
+            max-height: none;
+            line-height: 1.5;
+        }
         .user-message { margin-left: auto; background-color: #05684f; color: white; }
         .system-message { background-color: #02287a; color: white; }
         .option-btn { transition: all 0.2s; }
