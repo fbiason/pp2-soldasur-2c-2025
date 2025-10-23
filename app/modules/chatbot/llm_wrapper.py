@@ -19,26 +19,28 @@ class OllamaLLM:
         self.system_prompt = """Eres Soldy, asesor de ventas de PEISA-SOLDASUR. Tu objetivo es ayudar con calidez y profesionalismo.
 
 REGLAS DE ORO:
-✅ Respuestas BREVES: Máximo 2-3 frases cortas (20-30 palabras total)
-✅ Tono CÁLIDO y HUMANO: Como un asesor real, empático y servicial
+✅ Respuestas MUY BREVES: 1 sola oración (15–20 palabras)
+✅ Solo sobre PRODUCTOS: Si hay contexto de productos, menciona únicamente esos modelos (no inventes otros)
 ✅ DIRECTO AL PUNTO: Sin rodeos ni explicaciones largas
-✅ Recomienda 1 producto específico por nombre cuando sea relevante
-✅ COHERENCIA: Recuerda lo que el cliente ya preguntó
-✅ Español argentino: Usá vos/podés, tono cercano
+✅ 1 recomendación (o 2 como máximo) con modelo y potencia
+✅ Español argentino: vos/podés, tono cercano
 
 🚫 NUNCA MENCIONES PRECIOS, COSTOS O MONTOS
 Si preguntan por precio/compra/presupuesto/dónde consigo, responde:
 "Para precios y compras, ¿estás en Río Grande o Ushuaia?"
 
+FORMATO DE RESPUESTA:
+- "<Modelo> – <potencia> W – <motivo breve>" (1 o 2 ítems como máximo, en una sola oración si es posible)
+
 EJEMPLOS:
-❌ MAL: "Para calentar tu hogar eficientemente, especialmente con un perro como Rufus que necesita un ambiente acogedor, te recomiendo considerar un sistema de calefacción completo..."
-✅ BIEN: "Podés usar radiadores Broen, son eficientes y fáciles de mantener. Si querés saber precios, te paso el contacto según tu ciudad."
+❌ MAL: "Para calentar tu hogar eficientemente... te recomiendo considerar un sistema de calefacción completo..."
+✅ BIEN: "Caldera Diva 24 – 24000 W – alcanza tu carga; o Diva 30 si querés más margen."
 
 ✗ No inventes datos técnicos
-✗ No recomiendes productos fuera del catálogo
+✗ No recomiendes productos fuera del catálogo/contexto
 ✗ No des explicaciones largas o técnicas
 ✗ No repitas información
-- TERMINA SIEMPRE CON PUNTO FINAL (.)"""
+    - TERMINA SIEMPRE CON PUNTO FINAL (.)"""
 
         # CTA opcional desde variable de entorno
         self.contact_cta = os.getenv('SOLDASUR_CONTACT_CTA')
@@ -48,7 +50,7 @@ EJEMPLOS:
     def generate(self, 
                  question: str, 
                  context: Optional[List[Dict]] = None,
-                 temperature: float = 0.3,
+                 temperature: float = 0.2,
                  max_tokens: int = 80) -> str:
         """
         Genera una respuesta usando Ollama Mistral
@@ -79,12 +81,10 @@ EJEMPLOS:
                     'temperature': temperature,
                     # Límite de tokens (por defecto 80 para respuestas breves)
                     'num_predict': max_tokens,
-                    'top_p': 0.7,  # Bajo para respuestas determinísticas
-                    'top_k': 20,  # Bajo para máximo control
-                    'repeat_penalty': 1.3,  # Penaliza fuertemente repeticiones
-                    'num_ctx': 1024,  # Contexto muy limitado
-                    # No cortar en mitad de la frase por puntuación; parar al primer salto de línea
-                    'stop': ['\n']
+                    'top_p': 0.5,  # Más determinismo
+                    'top_k': 20,   # Bajo para máximo control
+                    'repeat_penalty': 1.3,  # Penaliza repeticiones
+                    'num_ctx': 1024  # Contexto limitado para foco
                 }
             )
             
@@ -191,9 +191,9 @@ EJEMPLOS:
         """Respuesta estándar cuando se consultan precios."""
         if context:
             products = ", ".join([p.get('model', 'N/A') for p in context[:2]])
-            base = f"No informamos precios por este medio; te recomiendo {products} y el precio es a consultar."
+            base = f"No informamos precios por este medio; te recomiendo {products} y el precio es a consultar. ¿Estás en Río Grande o Ushuaia?"
         else:
-            base = "No informamos precios por este medio; el precio es a consultar con nuestro equipo comercial."
+            base = "No informamos precios por este medio; el precio es a consultar con nuestro equipo comercial. ¿Estás en Río Grande o Ushuaia?"
         if self.contact_cta:
             base += f" Contacto: {self.contact_cta}."
         return self._ensure_final_period(base)
@@ -221,7 +221,7 @@ EJEMPLOS:
         
         # Agregar la pregunta
         prompt_parts.append(f"\n\n❓ CONSULTA DEL CLIENTE:\n{question}")
-        prompt_parts.append("\n\n💬 RESPONDE EN UNA SOLA ORACIÓN BREVE (15-20 palabras) recomendando productos:")
+        prompt_parts.append("\n\n💬 RESPONDE SOLO CON 1 ORACIÓN (15–20 palabras) mencionando 1–2 modelos del contexto, con potencia y motivo breve. Nada más:")
         
         return "\n".join(prompt_parts)
     

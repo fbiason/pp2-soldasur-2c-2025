@@ -39,6 +39,10 @@ Widget de chat flotante estilo chatbot moderno con integración de OpenAI GPT-4 
    -  Tengo una pregunta: Chat libre con IA
    -  Buscar productos: Navegación por categorías
 
+3. **Nuevos Flujos (2025-10-23)**
+    -  Consultar producto: Cada tarjeta tiene botón "Consultar" que pide ciudad (Río Grande/Ushuaia) y muestra contactos.
+    -  Preguntas de precio: Se interceptan antes del LLM y se deriva a ventas con elección de ciudad.
+
 3. **Navegación**
    - Botón "Volver": Regresa al menú principal
    - Aparece automáticamente al entrar en un modo
@@ -84,6 +88,18 @@ function toggleChat() {
         chatButton.style.display = 'flex';
     }
 }
+```
+
+#### Hooks agregados
+```javascript
+// Forzar brevedad en respuestas del LLM (frontend)
+function briefenResponse(text) { /* ... */ }
+
+// Detectar consultas de precio/costo
+function isPriceQuestion(text) { /* ... */ }
+
+// Iniciar consulta comercial para un producto sugerido
+function consultProduct(product) { /* ... */ }
 ```
 
 ## Uso
@@ -146,6 +162,8 @@ let chatIsOpen = false;           // Estado del widget
 let conversationHistory = [];     // Historial con OpenAI
 let conversationStep = 0;         // Paso actual del flujo
 let inMainMenu = true;            // Estado de navegación
+let waitingForCity = false;       // Esperando ciudad para contacto/consulta
+let selectedProductForConsult = null; // Producto seleccionado para consulta
 ```
 
 ## Mejores Prácticas

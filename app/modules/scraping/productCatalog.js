@@ -67,12 +67,11 @@ function renderProducts(products) {
     
     productsToShow.forEach((product, index) => {
         const card = document.createElement('div');
-        card.className = 'product-card fade-in cursor-pointer';
+        card.className = 'product-card fade-in';
         card.style.animationDelay = `${index * 0.05}s`;
-        card.onclick = () => window.open(product.url, '_blank');
         card.innerHTML = `
-            <div class="flex justify-between items-start">
-                <div class="flex-1">
+            <div class="flex justify-between items-start gap-2">
+                <div class="flex-1 cursor-pointer js-open-link">
                     <div class="font-semibold text-blue-800">${product.model || 'N/A'}</div>
                     <div class="text-sm text-gray-600">
                         <span class="inline-block px-2 py-0.5 bg-blue-50 rounded text-xs mr-1">${product.family || ''}</span>
@@ -80,13 +79,29 @@ function renderProducts(products) {
                     </div>
                     ${product.description ? `<div class="text-xs text-gray-500 mt-1">${product.description}</div>` : ''}
                 </div>
-                <div class="ml-2 flex-shrink-0">
-                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-                    </svg>
+                <div class="ml-2 flex-shrink-0 flex flex-col items-end gap-1">
+                    <button class="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 js-consult">Consultar</button>
+                    <button class="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 js-open">Ver ficha</button>
                 </div>
             </div>
         `;
+
+        // Abrir ficha
+        card.querySelector('.js-open, .js-open-link').addEventListener('click', (e) => {
+            e.stopPropagation();
+            window.open(product.url, '_blank');
+        });
+
+        // Consultar producto
+        card.querySelector('.js-consult').addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (typeof consultProduct === 'function') {
+                consultProduct(product);
+            } else {
+                alert('Para consultar por este producto, indicá tu ciudad: Río Grande o Ushuaia.');
+            }
+        });
+
         container.appendChild(card);
     });
     

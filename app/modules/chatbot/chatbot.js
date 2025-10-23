@@ -9,6 +9,7 @@ const conversationHistory = [];
 const MAX_HISTORY_LENGTH = 10; // Mantener últimos 10 mensajes para no saturar el contexto
 let conversationContext = ''; // Resumen del contexto de la conversación
 let waitingForCity = false; // Estado para saber si estamos esperando que el usuario elija ciudad
+let selectedProductForConsult = null; // Producto elegido para consulta comercial
 
 /* Iniciar modo chatbot */
 function startChatbot() {
@@ -71,7 +72,12 @@ function showContactInfo(city) {
         `;
     }
     
-    appendMessage('system', '¡Perfecto! Acá están nuestros datos de contacto:');
+    // Mensaje contextual si viene de "Consultar producto"
+    if (selectedProductForConsult) {
+        appendMessage('system', `Consulta por ${selectedProductForConsult.model}: ¿Querés que te contacten? Acá están nuestros datos según tu ciudad:`);
+    } else {
+        appendMessage('system', '¡Perfecto! Acá están nuestros datos de contacto:');
+    }
     
     const chatContainer = document.getElementById('chat-container');
     const contactDiv = document.createElement('div');
@@ -79,6 +85,8 @@ function showContactInfo(city) {
     contactDiv.innerHTML = contactHTML;
     chatContainer.appendChild(contactDiv);
     scrollToBottom();
+    // Resetear producto seleccionado después de mostrar contactos
+    selectedProductForConsult = null;
 }
 
 /* Mostrar input de chat */
@@ -124,6 +132,28 @@ async function handleChatInput() {
     if (question) {
         appendMessage('user', question);
         input.value = '';
+        
+        // Interceptar consultas de precio/costo y derivar a ventas
+        if (isPriceQuestion(question)) {
+            waitingForCity = true;
+            appendMessage('system', 'Para precios y compras, ¿estás en Río Grande o Ushuaia?');
+            // Botones rápidos
+            const chatContainer = document.getElementById('chat-container');
+            const div = document.createElement('div');
+            div.className = 'fade-in mt-2 flex gap-2';
+            const btnRG = document.createElement('button');
+            btnRG.className = 'text-xs px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded';
+            btnRG.textContent = 'Río Grande';
+            btnRG.onclick = () => { showContactInfo('riogrande'); waitingForCity = false; showChatInput(); };
+            const btnUsh = document.createElement('button');
+            btnUsh.className = 'text-xs px-3 py-1 bg-green-100 hover:bg-green-200 text-green-800 rounded';
+            btnUsh.textContent = 'Ushuaia';
+            btnUsh.onclick = () => { showContactInfo('ushuaia'); waitingForCity = false; showChatInput(); };
+            div.appendChild(btnRG); div.appendChild(btnUsh);
+            chatContainer.appendChild(div);
+            scrollToBottom();
+            return;
+        }
         
         // Detectar si el usuario está respondiendo con una ciudad
         if (waitingForCity && (question.toLowerCase().includes('río grande') || question.toLowerCase().includes('rio grande') || question.toLowerCase().includes('rg'))) {
@@ -177,21 +207,19 @@ CATÁLOGO:
 ${JSON.stringify(peisaProducts, null, 2)}
 
 REGLAS DE ORO:
-1. ✅ Respuestas BREVES: Máximo 2-3 frases cortas (20-30 palabras total)
-2. ✅ Tono CÁLIDO y HUMANO: Como un asesor real, empático y servicial
-3. ✅ DIRECTO AL PUNTO: Sin rodeos ni explicaciones largas
-4. ✅ Recomienda 1 producto específico por nombre cuando sea relevante
-5. ✅ COHERENCIA: Recuerda lo que el cliente ya preguntó
+1. ✅ Respuestas MUY BREVES: 1 sola oración (máx. 20 palabras)
+2. ✅ SOLO PRODUCTOS: Mencioná 1–2 modelos del catálogo (no inventes otros)
+3. ✅ DIRECTO AL PUNTO: Sin explicaciones largas ni intro
+4. ✅ Formato preferido: "<Modelo> – <potencia> W – <motivo breve>"
+5. ✅ Español argentino (vos/podés)
 
 🚫 NUNCA MENCIONES PRECIOS, COSTOS O MONTOS
 Si preguntan por precio/compra/presupuesto, responde:
 "Para precios y compras, ¿estás en Río Grande o Ushuaia?"
 
 EJEMPLOS:
-❌ MAL: "Para calentar tu hogar eficientemente, especialmente con un perro como Rufus que necesita un ambiente acogedor, te recomiendo considerar un sistema de calefacción completo..."
-✅ BIEN: "Podés usar radiadores Broen, son eficientes y fáciles de mantener. Si querés saber precios, te paso el contacto según tu ciudad."
-
-Español argentino, vos/podés, tono cercano.`;
+❌ MAL: "Para calentar tu hogar eficientemente..."
+✅ BIEN: "Caldera Diva 24 – 24000 W – cubre tu carga; o Diva 30 si querés más margen."`;
 
     // Agregar contexto de conversación previa si existe
     if (conversationContext) {
@@ -238,7 +266,7 @@ Español argentino, vos/podés, tono cercano.`;
     }
     
     const data = await response.json();
-    const assistantMessage = data.message.content;
+    const assistantMessage = briefenResponse(data.message.content);
     
     // Agregar respuesta del asistente al historial
     conversationHistory.push({
@@ -253,6 +281,66 @@ Español argentino, vos/podés, tono cercano.`;
         message: assistantMessage,
         products: mentionedProducts
     };
+}
+
+/* Forzar brevedad y foco producto-only en el mensaje */
+function briefenResponse(text) {
+    if (!text) return '';
+    // Unificar espacios y líneas
+    let t = text.replace(/\s+/g, ' ').trim();
+    // Cortar a la primera oración si supera 22 palabras
+    const words = t.split(' ');
+    if (words.length > 22) {
+        // Buscar primer punto
+        const dotIdx = t.indexOf('.');
+        if (dotIdx > 0) {
+            t = t.slice(0, dotIdx + 1);
+        } else {
+            t = words.slice(0, 22).join(' ');
+            if (!/[\.!?]$/.test(t)) t += '.';
+        }
+    } else {
+        if (!/[\.!?]$/.test(t)) t += '.';
+    }
+    return t;
+}
+
+/* Detectar consultas de precio/costo */
+function isPriceQuestion(text) {
+    if (!text) return false;
+    const t = text.toLowerCase();
+    const keywords = [
+        'precio', 'precios', 'costo', 'costos', 'presupuesto', 'cuesta', 'vale', 'sale',
+        'descuento', 'promoción', 'promocion', 'oferta', 'cuotas', 'financiación', 'financiacion'
+    ];
+    const currencyRegex = /(ar\$|u\$s|us\$|usd|eur|€|\$)\s*\d{1,3}(?:[\.,]\d{3})*(?:[\.,]\d{2})?/i;
+    return keywords.some(k => t.includes(k)) || currencyRegex.test(text);
+}
+
+/* Consultar por un producto sugerido (se llama desde productCatalog.js) */
+function consultProduct(product) {
+    try {
+        selectedProductForConsult = product || null;
+        waitingForCity = true;
+        appendMessage('system', `¿Querés consultar por ${product?.model || 'este producto'}? Elegí tu ciudad:`);
+        // Botones rápidos locales (no usan handleOptionClick)
+        const chatContainer = document.getElementById('chat-container');
+        const div = document.createElement('div');
+        div.className = 'fade-in mt-2 flex gap-2';
+        const btnRG = document.createElement('button');
+        btnRG.className = 'text-xs px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded';
+        btnRG.textContent = 'Río Grande';
+        btnRG.onclick = () => { showContactInfo('riogrande'); waitingForCity = false; showChatInput(); };
+        const btnUsh = document.createElement('button');
+        btnUsh.className = 'text-xs px-3 py-1 bg-green-100 hover:bg-green-200 text-green-800 rounded';
+        btnUsh.textContent = 'Ushuaia';
+        btnUsh.onclick = () => { showContactInfo('ushuaia'); waitingForCity = false; showChatInput(); };
+        div.appendChild(btnRG); div.appendChild(btnUsh);
+        chatContainer.appendChild(div);
+        scrollToBottom();
+    } catch (e) {
+        console.error('Error iniciando consulta de producto', e);
+    }
 }
 
 /* Actualizar contexto de conversación */
