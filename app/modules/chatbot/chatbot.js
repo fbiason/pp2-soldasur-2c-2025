@@ -201,7 +201,7 @@ async function handleChatInput() {
 /* Llamar a la API de Ollama */
 async function callOllama(userMessage) {
     // Crear el contexto del sistema con información de productos
-    let systemPrompt = `Eres Soldy, asesor de ventas de PEISA-SOLDASUR. Tu objetivo es ayudar con calidez y profesionalismo.
+    let systemPrompt = `Eres Soldy, asesor de ventas de SOLDASUR (los productos que vendemos son marca PEISA). Tu objetivo es ayudar con calidez y profesionalismo.
 
 CATÁLOGO:
 ${JSON.stringify(peisaProducts, null, 2)}
@@ -212,6 +212,8 @@ REGLAS DE ORO:
 3. ✅ DIRECTO AL PUNTO: Sin explicaciones largas ni intro
 4. ✅ Formato preferido: "<Modelo> – <potencia> W – <motivo breve>"
 5. ✅ Español argentino (vos/podés)
+
+6. ✅ Branding correcto: PEISA es solo la marca de los productos; la empresa, sucursales y contactos son de SOLDASUR. Nunca digas "visita a PEISA", "en PEISA" o similares; usa siempre "Soldasur" para la empresa.
 
 🚫 NUNCA MENCIONES PRECIOS, COSTOS O MONTOS
 Si preguntan por precio/compra/presupuesto, responde:
@@ -266,7 +268,7 @@ EJEMPLOS:
     }
     
     const data = await response.json();
-    const assistantMessage = briefenResponse(data.message.content);
+            const assistantMessage = fixBranding(briefenResponse(data.message.content));
     
     // Agregar respuesta del asistente al historial
     conversationHistory.push({
@@ -302,6 +304,19 @@ function briefenResponse(text) {
     } else {
         if (!/[\.!?]$/.test(t)) t += '.';
     }
+    return t;
+}
+
+/* Corregir branding: PEISA es marca; la empresa es Soldasur */
+function fixBranding(text) {
+    if (!text) return '';
+    let t = text;
+    // Cambios directos de frases típicas
+    t = t.replace(/visita a\s+peisa/gi, 'visita a Soldasur');
+    t = t.replace(/en\s+peisa\b/gi, 'en Soldasur');
+    t = t.replace(/(sucursales?|local|tienda|showroom|empresa|oficina|contacto)s?\s+de\s+peisa/gi, '$1 de Soldasur');
+    t = t.replace(/empresa\s+peisa/gi, 'empresa Soldasur');
+    // Evitar tocar menciones válidas de productos/catálogo PEISA
     return t;
 }
 
