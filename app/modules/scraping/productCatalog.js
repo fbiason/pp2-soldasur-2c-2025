@@ -81,7 +81,6 @@ function renderProducts(products) {
                 </div>
                 <div class="ml-2 flex-shrink-0 flex flex-col items-end gap-1">
                     <button class="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 js-consult">Consultar</button>
-                    <button class="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 js-open">Ver ficha</button>
                 </div>
             </div>
         `;

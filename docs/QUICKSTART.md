@@ -1,6 +1,9 @@
 # 🚀 Guía de Inicio Rápido - SOLDASUR 2025
 
-## ⚡ En 5 minutos
+## Si ya están realizadas las instalaciones
+
+=======================================================
+## PRIMEROS PASOS
 
 ### Paso 1: Instalar Ollama (2 minutos)
 
