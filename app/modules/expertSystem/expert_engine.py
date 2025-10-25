@@ -11,6 +11,7 @@ from math import ceil
 from bisect import bisect_left
 from pathlib import Path
 from .models import RADIATOR_MODELS
+from .product_loader import get_product_loader
 
 
 class ExpertEngine:
@@ -29,6 +30,7 @@ class ExpertEngine:
         self.knowledge_base = []
         self.rag_engine = None  # Se inyectará después
         self.rag_enrichment_enabled = True
+        self.product_loader = get_product_loader()  # Cargador de productos dinámico
         
         # Cargar base de conocimiento
         try:
@@ -378,6 +380,7 @@ def filter_radiators(radiator_type: str, installation: str, style: str,
                     color: str, heat_load: float) -> List[Dict[str, Any]]:
     """
     Filtra radiadores según las preferencias del usuario.
+    Usa el cargador dinámico de productos desde Excel.
     
     Args:
         radiator_type: Tipo de radiador
@@ -389,43 +392,25 @@ def filter_radiators(radiator_type: str, installation: str, style: str,
     Returns:
         Lista de radiadores recomendados
     """
+    loader = get_product_loader()
+    radiators = loader.filter_radiators_by_criteria(
+        radiator_type=radiator_type,
+        installation=installation,
+        style=style,
+        color=color,
+        heat_load=heat_load
+    )
+    
+    # Formatear para compatibilidad con código existente
     recommended = []
-    
-    for name, model in RADIATOR_MODELS.items():
-        # Filtrar por tipo de radiador
-        if isinstance(model.get('type'), str):
-            if model.get('type') != radiator_type:
-                continue
-        else:
-            if radiator_type not in model.get('type', []):
-                continue
-        
-        # Filtrar por tipo de instalación
-        if installation != 'cualquiera':
-            if isinstance(model['installation'], str):
-                if model['installation'] != installation:
-                    continue
-            elif installation not in model['installation']:
-                continue
-        
-        # Filtrar por estilo
-        if style != 'cualquiera' and model['style'] != style:
-            continue
-        
-        # Filtrar por color
-        if color != 'cualquiera' and color not in model['colors']:
-            continue
-        
+    for rad in radiators:
         recommended.append({
-            'name': name,
-            'description': model['description'],
-            'coeficiente': model.get('coeficiente', 1.0),
-            'potencia': model['potencia'],
-            'colors': model['colors']
+            'name': rad['name'],
+            'description': rad['description'],
+            'coeficiente': rad.get('coeficiente', 1.0),
+            'potencia': rad['potencia'],
+            'colors': rad['colors']
         })
-    
-    # Ordenar por mejor ajuste a la carga térmica
-    recommended.sort(key=lambda x: abs(x['potencia'] * x['coeficiente'] - heat_load))
     
     return recommended[:3]  # Top 3 recomendaciones
 
@@ -471,23 +456,17 @@ def format_radiator_recommendations(models: List[Dict[str, Any]],
 
 def load_product_catalog(catalog_path: str = "data/products_catalog.json") -> List[Dict[str, Any]]:
     """
-    Carga el catálogo de productos desde el archivo JSON.
+    Carga el catálogo de productos dinámicamente desde Excel.
+    El parámetro catalog_path se mantiene por compatibilidad pero no se usa.
     
     Args:
-        catalog_path: Ruta al archivo del catálogo
+        catalog_path: Ruta al archivo del catálogo (no usado, por compatibilidad)
         
     Returns:
-        Lista de productos
+        Lista de productos cargados desde Excel
     """
-    try:
-        with open(catalog_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except FileNotFoundError:
-        print(f"Advertencia: No se encontró {catalog_path}")
-        return []
-    except Exception as e:
-        print(f"Error cargando catálogo: {e}")
-        return []
+    loader = get_product_loader()
+    return loader.get_all_products()
 
 
 def recommend_boiler(power_required_w: float, boiler_type: str, 
