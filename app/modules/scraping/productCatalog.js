@@ -1,7 +1,3 @@
-/* ============================================
-   CATÁLOGO DE PRODUCTOS Y SCRAPING
-   ============================================ */
-
 /* Catálogo de productos PEISA */
 const peisaProducts = [
     // Calderas hogareñas

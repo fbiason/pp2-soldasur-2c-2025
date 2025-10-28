@@ -1,7 +1,3 @@
-/* ============================================
-   CHATBOT - INTEGRACIÓN CON OLLAMA
-   ============================================ */
-
 /* Configuración Ollama */
 const OLLAMA_URL = 'http://localhost:11434/api/chat';
 const OLLAMA_MODEL = 'llama3.2:3b';
@@ -206,22 +202,22 @@ async function callOllama(userMessage) {
 CATÁLOGO:
 ${JSON.stringify(peisaProducts, null, 2)}
 
-REGLAS DE ORO:
-1. ✅ Respuestas MUY BREVES: 1 sola oración (máx. 20 palabras)
-2. ✅ SOLO PRODUCTOS: Mencioná 1–2 modelos del catálogo (no inventes otros)
-3. ✅ DIRECTO AL PUNTO: Sin explicaciones largas ni intro
-4. ✅ Formato preferido: "<Modelo> – <potencia> W – <motivo breve>"
-5. ✅ Español argentino (vos/podés)
+REGLAS:
+1. Respuestas MUY BREVES: 1 sola oración (máx. 20 palabras)
+2. SOLO PRODUCTOS: Mencioná 1–2 modelos del catálogo (no inventes otros)
+3. DIRECTO AL PUNTO: Sin explicaciones largas ni intro
+4. Formato preferido: "<Modelo> – <potencia> W – <motivo breve>"
+5. Español argentino (vos/podés)
 
-6. ✅ Branding correcto: PEISA es solo la marca de los productos; la empresa, sucursales y contactos son de SOLDASUR. Nunca digas "visita a PEISA", "en PEISA" o similares; usa siempre "Soldasur" para la empresa.
+6. Branding correcto: PEISA es solo la marca de los productos; la empresa, sucursales y contactos son de SOLDASUR. Nunca digas "visita a PEISA", "en PEISA" o similares; usa siempre "Soldasur" para la empresa.
 
-🚫 NUNCA MENCIONES PRECIOS, COSTOS O MONTOS
+NUNCA MENCIONES PRECIOS, COSTOS O MONTOS
 Si preguntan por precio/compra/presupuesto, responde:
 "Para precios y compras, ¿estás en Río Grande o Ushuaia?"
 
 EJEMPLOS:
-❌ MAL: "Para calentar tu hogar eficientemente..."
-✅ BIEN: "Caldera Diva 24 – 24000 W – cubre tu carga; o Diva 30 si querés más margen."`;
+- MAL: "Para calentar tu hogar eficientemente..."
+- BIEN: "Caldera Diva 24 – 24000 W – cubre tu carga; o Diva 30 si querés más margen."`;
 
     // Agregar contexto de conversación previa si existe
     if (conversationContext) {
