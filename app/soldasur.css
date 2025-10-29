@@ -18,6 +18,19 @@
         }
         .user-message { margin-left: auto; background-color: #05684f; color: white; }
         .system-message { background-color: #02287a; color: white; }
+        
+        /* Enlaces de productos en mensajes */
+        .system-message .product-link {
+            color: #60a5fa !important;
+            font-weight: 600;
+            text-decoration: underline;
+            transition: all 0.2s;
+        }
+        .system-message .product-link:hover {
+            color: #93c5fd !important;
+            text-decoration: none;
+        }
+        
         .option-btn { transition: all 0.2s; }
         .option-btn:hover { transform: translateY(-2px); }
         .loading-spinner { 

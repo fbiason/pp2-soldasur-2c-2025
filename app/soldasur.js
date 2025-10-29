@@ -1,14 +1,3 @@
-/* ============================================
-   SOLDASUR - ORQUESTADOR PRINCIPAL
-   Integra: Sistema Experto, Chatbot y Catálogo
-   ============================================ */
-
-/* NOTA: Este archivo requiere la carga previa de:
-   - productCatalog.js
-   - expertSystem.js
-   - chatbot.js
-*/
-
 /* ========== ESTADO GLOBAL ========== */
 let conversationId = 'user_' + Math.random().toString(36).substr(2, 9);
 let lastUserResponse = null;

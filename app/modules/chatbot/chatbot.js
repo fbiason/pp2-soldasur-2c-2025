@@ -6,6 +6,26 @@ const MAX_HISTORY_LENGTH = 10; // Mantener últimos 10 mensajes para no saturar 
 let conversationContext = ''; // Resumen del contexto de la conversación
 let waitingForCity = false; // Estado para saber si estamos esperando que el usuario elija ciudad
 let selectedProductForConsult = null; // Producto elegido para consulta comercial
+let peisaProductsFromJSON = []; // Catálogo cargado desde JSON
+
+/* Cargar catálogo desde JSON */
+async function loadProductCatalog() {
+    try {
+        // Ruta relativa desde app/soldasur2025.html hacia data/products_catalog.json
+        const response = await fetch('../data/products_catalog.json');
+        if (!response.ok) throw new Error('Error cargando catálogo');
+        peisaProductsFromJSON = await response.json();
+        console.log(`✅ Catálogo cargado: ${peisaProductsFromJSON.length} productos con información completa`);
+    } catch (error) {
+        console.error('❌ Error cargando catálogo:', error);
+        console.error('   Asegurate de que el archivo data/products_catalog.json existe');
+        console.error('   Ejecutá: python app/modules/scraping/product_scraper.py');
+        peisaProductsFromJSON = [];
+    }
+}
+
+// Cargar catálogo al iniciar
+loadProductCatalog();
 
 /* Iniciar modo chatbot */
 function startChatbot() {
@@ -169,7 +189,10 @@ async function handleChatInput() {
         try {
             const response = await callOllama(question);
             hideLoadingIndicator();
-            appendMessage('system', response.message);
+            
+            // Enriquecer el mensaje con enlaces a productos mencionados
+            const enrichedMessage = enrichMessageWithLinks(response.message);
+            appendMessage('system', enrichedMessage);
             
             // Detectar si la respuesta pregunta por la ciudad
             if (response.message.toLowerCase().includes('río grande o ushuaia') || 
@@ -196,28 +219,66 @@ async function handleChatInput() {
 
 /* Llamar a la API de Ollama */
 async function callOllama(userMessage) {
+    // Usar el catálogo JSON actualizado (con descripciones completas, ventajas y características)
+    const catalogToUse = peisaProductsFromJSON;
+    
+    // Verificar que el catálogo esté cargado
+    if (!catalogToUse || catalogToUse.length === 0) {
+        console.error('⚠️ Catálogo vacío - no se pueden recomendar productos');
+        return 'Disculpá, estoy teniendo problemas para acceder al catálogo. Por favor, recargá la página.';
+    }
+    
+    // Crear versión simplificada del catálogo para el prompt (solo info clave + URL)
+    const simplifiedCatalog = catalogToUse.map(p => ({
+        model: p.model,
+        family: p.family,
+        category: p.category,
+        description: p.description?.substring(0, 150) || '', // Limitar descripción
+        advantages: p.advantages?.slice(0, 2) || [], // Solo primeras 2 ventajas
+        url: p.url // IMPORTANTE: incluir URL
+    }));
+    
     // Crear el contexto del sistema con información de productos
-    let systemPrompt = `Eres Soldy, asesor de ventas de SOLDASUR (los productos que vendemos son marca PEISA). Tu objetivo es ayudar con calidez y profesionalismo.
+    let systemPrompt = `Eres Soldy, asesor de ventas experto de SOLDASUR (vendemos productos marca PEISA). Tu misión es VENDER recomendando LA MEJOR SOLUCIÓN del catálogo según la necesidad del cliente.
 
-CATÁLOGO:
-${JSON.stringify(peisaProducts, null, 2)}
+CATÁLOGO COMPLETO (${catalogToUse.length} productos con descripciones, ventajas y características):
+${JSON.stringify(simplifiedCatalog, null, 2)}
 
-REGLAS:
-1. Respuestas MUY BREVES: 1 sola oración (máx. 20 palabras)
-2. SOLO PRODUCTOS: Mencioná 1–2 modelos del catálogo (no inventes otros)
-3. DIRECTO AL PUNTO: Sin explicaciones largas ni intro
-4. Formato preferido: "<Modelo> – <potencia> W – <motivo breve>"
-5. Español argentino (vos/podés)
+REGLAS DE ORO:
+1. ANALIZA la necesidad del cliente (frío, calefacción, agua caliente, espacio, etc.)
+2. RECOMIENDA el producto MÁS ADECUADO del catálogo por nombre completo
+3. MENCIONA 1 producto por defecto; hasta 3 SOLO si piden "opciones", "alternativas" o "varios"
+4. EXPLICA por qué ese producto es ideal para su necesidad específica
+5. USA información real del catálogo (descripción, ventajas)
+6. Respuestas: 2-3 oraciones (30-40 palabras)
+7. Español argentino (vos/podés)
+8. NUNCA precios - si preguntan: "Para precios, ¿estás en Río Grande o Ushuaia?"
 
-6. Branding correcto: PEISA es solo la marca de los productos; la empresa, sucursales y contactos son de SOLDASUR. Nunca digas "visita a PEISA", "en PEISA" o similares; usa siempre "Soldasur" para la empresa.
+FORMATO DE RESPUESTA:
+"[Comprensión de necesidad]. Te recomiendo [Producto] – [por qué es ideal para su caso]."
 
-NUNCA MENCIONES PRECIOS, COSTOS O MONTOS
-Si preguntan por precio/compra/presupuesto, responde:
-"Para precios y compras, ¿estás en Río Grande o Ushuaia?"
+EJEMPLOS POR NECESIDAD:
 
-EJEMPLOS:
-- MAL: "Para calentar tu hogar eficientemente..."
-- BIEN: "Caldera Diva 24 – 24000 W – cubre tu carga; o Diva 30 si querés más margen."`;
+Usuario: "Tengo frío"
+Soldy: "Para calentarte rápido, te recomiendo el Radiador Broen E – control digital y calor inmediato para tu ambiente."
+
+Usuario: "Necesito calefacción para toda la casa"
+Soldy: "Para toda la casa, la Prima Tec Smart es ideal – calefacción y agua caliente con 90% eficiencia y control wifi."
+
+Usuario: "¿Qué opciones tengo para calefacción?" (PIDE OPCIONES)
+Soldy: "Tenés 3 opciones: Prima Tec Smart (caldera wifi), Radiador Broen E (control digital) o Caldera Diva 24 (doble servicio)."
+
+Usuario: "Necesito agua caliente"
+Soldy: "Para agua caliente, el Termotanque Peisa es perfecto – recuperación rápida y bajo consumo."
+
+Usuario: "Departamento chico"
+Soldy: "Para espacios chicos, el Radiador Broen E es ideal – compacto, eficiente y control preciso."
+
+IMPORTANTE:
+- Branding: PEISA = marca, SOLDASUR = empresa
+- SIEMPRE usa productos REALES del catálogo
+- ADAPTA la recomendación a la necesidad específica
+- NO inventes productos ni características`;
 
     // Agregar contexto de conversación previa si existe
     if (conversationContext) {
@@ -254,7 +315,9 @@ EJEMPLOS:
             stream: false,
             options: {
                 temperature: 0.7,
-                num_predict: 80  // Respuestas breves y concisas (2-3 frases)
+                num_predict: 150,  // Suficiente para respuestas completas con 1-2 productos
+                top_p: 0.9,
+                top_k: 40
             }
         })
     });
@@ -284,22 +347,31 @@ EJEMPLOS:
 /* Forzar brevedad y foco producto-only en el mensaje */
 function briefenResponse(text) {
     if (!text) return '';
+    
     // Unificar espacios y líneas
     let t = text.replace(/\s+/g, ' ').trim();
-    // Cortar a la primera oración si supera 22 palabras
+    
+    // Permitir hasta 50 palabras para respuestas con productos
     const words = t.split(' ');
-    if (words.length > 22) {
-        // Buscar primer punto
-        const dotIdx = t.indexOf('.');
-        if (dotIdx > 0) {
-            t = t.slice(0, dotIdx + 1);
+    const maxWords = 50;
+    
+    if (words.length > maxWords) {
+        // Buscar el segundo o tercer punto para permitir 2-3 oraciones
+        const sentences = t.split(/[.!?]+/).filter(s => s.trim().length > 0);
+        
+        if (sentences.length >= 2) {
+            // Tomar las primeras 2-3 oraciones
+            t = sentences.slice(0, 3).join('. ') + '.';
         } else {
-            t = words.slice(0, 22).join(' ');
+            // Si no hay puntos, cortar en maxWords
+            t = words.slice(0, maxWords).join(' ');
             if (!/[\.!?]$/.test(t)) t += '.';
         }
     } else {
+        // Agregar punto final si no lo tiene
         if (!/[\.!?]$/.test(t)) t += '.';
     }
+    
     return t;
 }
 
@@ -356,6 +428,9 @@ function consultProduct(product) {
 
 /* Actualizar contexto de conversación */
 function updateConversationContext() {
+    // Usar el catálogo JSON actualizado
+    const catalogToUse = peisaProductsFromJSON;
+    
     // Crear un resumen de los temas tratados en la conversación
     const topics = [];
     const mentionedProducts = new Set();
@@ -373,7 +448,7 @@ function updateConversationContext() {
             if (content.includes('precio') || content.includes('costo')) topics.push('precios');
         } else if (msg.role === 'assistant') {
             // Extraer productos mencionados por el asistente
-            peisaProducts.forEach(product => {
+            catalogToUse.forEach(product => {
                 if (msg.content.toLowerCase().includes(product.model.toLowerCase())) {
                     mentionedProducts.add(product.model);
                 }
@@ -395,10 +470,13 @@ function updateConversationContext() {
 
 /* Detectar productos mencionados en la respuesta */
 function detectMentionedProducts(message) {
+    // Usar el catálogo JSON actualizado
+    const catalogToUse = peisaProductsFromJSON;
+    
     const mentioned = [];
     const messageLower = message.toLowerCase();
     
-    for (const product of peisaProducts) {
+    for (const product of catalogToUse) {
         const modelLower = product.model.toLowerCase();
         if (messageLower.includes(modelLower)) {
             mentioned.push(product);
@@ -408,19 +486,51 @@ function detectMentionedProducts(message) {
     // Si no se mencionan productos específicos pero se habla de categorías
     if (mentioned.length === 0) {
         if (messageLower.includes('caldera') || messageLower.includes('calderas')) {
-            return peisaProducts.filter(p => p.family === 'Calderas').slice(0, 3);
+            return catalogToUse.filter(p => p.family === 'Calderas').slice(0, 3);
         } else if (messageLower.includes('radiador') || messageLower.includes('radiadores')) {
-            return peisaProducts.filter(p => p.family === 'Radiadores').slice(0, 3);
+            return catalogToUse.filter(p => p.family === 'Radiadores').slice(0, 3);
         } else if (messageLower.includes('toallero') || messageLower.includes('toalleros')) {
-            return peisaProducts.filter(p => p.family === 'Toalleros').slice(0, 3);
+            return catalogToUse.filter(p => p.family === 'Radiadores' && p.type?.toLowerCase().includes('toallero')).slice(0, 3);
         } else if (messageLower.includes('termotanque') || messageLower.includes('termotanques')) {
-            return peisaProducts.filter(p => p.family === 'Termotanques').slice(0, 3);
+            return catalogToUse.filter(p => p.family === 'Termotanques').slice(0, 3);
         } else if (messageLower.includes('calefón') || messageLower.includes('calefones')) {
-            return peisaProducts.filter(p => p.family === 'Calefones').slice(0, 3);
+            return catalogToUse.filter(p => p.family === 'Calefones').slice(0, 3);
         }
     }
     
     return mentioned.slice(0, 5); // Limitar a 5 productos
+}
+
+/* Enriquecer mensaje con enlaces a productos mencionados */
+function enrichMessageWithLinks(message) {
+    if (!peisaProductsFromJSON || peisaProductsFromJSON.length === 0) {
+        return message;
+    }
+    
+    let enrichedMessage = message;
+    const replacedProducts = new Set(); // Evitar reemplazos duplicados
+    
+    // Ordenar productos por longitud de nombre (más largos primero) para evitar reemplazos parciales
+    const sortedProducts = [...peisaProductsFromJSON].sort((a, b) => b.model.length - a.model.length);
+    
+    // Buscar productos mencionados y reemplazar con enlaces
+    for (const product of sortedProducts) {
+        // Escapar caracteres especiales en el nombre del producto para regex
+        const escapedModel = product.model.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        
+        // Buscar el nombre del producto en el mensaje (case insensitive, palabra completa)
+        const regex = new RegExp(`\\b(${escapedModel})\\b`, 'gi');
+        
+        if (regex.test(enrichedMessage) && !replacedProducts.has(product.model.toLowerCase())) {
+            // Reemplazar con enlace HTML
+            enrichedMessage = enrichedMessage.replace(regex, 
+                `<a href="${product.url}" target="_blank" class="product-link" title="Ver ${product.model} en PEISA">$1</a>`
+            );
+            replacedProducts.add(product.model.toLowerCase());
+        }
+    }
+    
+    return enrichedMessage;
 }
 
 /* Indicadores de carga */
