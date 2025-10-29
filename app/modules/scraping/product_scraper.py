@@ -11,6 +11,12 @@ def scrape_peisa_products() -> List[Dict]:
     Realiza scraping REAL del sitio web de PEISA para obtener productos actualizados.
     URL: https://peisa.com.ar/productos
     
+    Extrae:
+    - Categoría (h1): ej. "Calderas centrales"
+    - Subcategoría (texto rojo): ej. "De potencia"
+    - Productos con nombre, tipo y descripción
+    - Ficha técnica completa de cada producto
+    
     Returns:
         Lista de productos extraídos del sitio web
     """
@@ -34,27 +40,68 @@ def scrape_peisa_products() -> List[Dict]:
         soup = BeautifulSoup(response.content, 'html.parser')
         print("  ✅ Página cargada correctamente")
         
-        # Buscar productos en la página - PEISA usa <a> con <article> dentro
+        # Buscar todos los productos en la página
         # Estructura: <a href="/productos/[nombre]"><article>...</article></a>
-        product_links = soup.find_all('a', href=re.compile(r'/productos/[^/]+$'))
+        all_product_links = soup.find_all('a', href=re.compile(r'/productos/[^/]+$'))
+        all_product_cards = [link for link in all_product_links if link.find('article')]
         
-        # Filtrar solo los que tienen article dentro (son productos reales)
-        product_cards = [link for link in product_links if link.find('article')]
+        print(f"  🔍 Total de productos encontrados en la página: {len(all_product_cards)}")
         
-        print(f"  🔍 Encontrados {len(product_cards)} productos")
+        # Extraer categorías para organizar
+        categories = soup.find_all('h1')
+        current_category = "Sin categoría"
+        current_subcategory = ""
         
-        for idx, card in enumerate(product_cards[:50], 1):  # Limitar a 50 productos
+        for category_elem in categories:
+            category_name = category_elem.get_text(strip=True)
+            
+            # Buscar subcategoría (texto rojo después del h1)
+            subcategory_elem = category_elem.find_next_sibling()
+            subcategory = ""
+            if subcategory_elem and 'text-peisared' in str(subcategory_elem.get('class', [])):
+                subcategory = subcategory_elem.get_text(strip=True)
+            
+            print(f"\n  📂 Categoría: {category_name}")
+            if subcategory:
+                print(f"     └─ Subcategoría: {subcategory}")
+        
+        # Procesar todos los productos encontrados
+        print(f"\n  📦 Procesando {len(all_product_cards)} productos...")
+        
+        for idx, card in enumerate(all_product_cards, 1):
             try:
-                # Extraer información del producto
-                product = extract_product_info(card, base_url)
+                # Intentar determinar categoría del producto buscando el h1 más cercano antes del producto
+                product_category = "Sin categoría"
+                product_subcategory = ""
+                
+                # Buscar hacia atrás en el HTML para encontrar el h1 más cercano
+                prev_elem = card
+                while prev_elem:
+                    prev_elem = prev_elem.find_previous(['h1', 'p'])
+                    if prev_elem and prev_elem.name == 'h1':
+                        product_category = prev_elem.get_text(strip=True)
+                        # Buscar subcategoría después del h1
+                        next_elem = prev_elem.find_next_sibling()
+                        if next_elem and 'text-peisared' in str(next_elem.get('class', [])):
+                            product_subcategory = next_elem.get_text(strip=True)
+                        break
+                
+                # Extraer información básica del producto
+                product = extract_product_info(card, base_url, product_category, product_subcategory)
                 
                 if product and product.get('model'):
+                    # Extraer características técnicas y ventajas de la página de detalle
+                    product_url = product.get('url')
+                    if product_url:
+                        technical_data = scrape_product_detail(product_url, headers)
+                        product.update(technical_data)
+                    
                     products.append(product)
-                    print(f"  ✓ [{idx}] {product['model']}")
+                    print(f"  ✓ [{idx}/{len(all_product_cards)}] {product['model']} - {product_category}")
                     
                 # Pequeña pausa para no sobrecargar el servidor
-                time.sleep(0.1)
-                
+                time.sleep(0.3)
+                    
             except Exception as e:
                 print(f"  ⚠️  Error procesando producto {idx}: {e}")
                 continue
@@ -63,29 +110,29 @@ def scrape_peisa_products() -> List[Dict]:
         
     except requests.RequestException as e:
         print(f"❌ Error de conexión: {e}")
-        print("⚠️  Usando catálogo de respaldo...")
-        return get_products_catalog_fallback()
+        print("⚠️  No se pudo conectar al sitio web de PEISA")
+        return []
     except Exception as e:
         print(f"❌ Error inesperado: {e}")
-        print("⚠️  Usando catálogo de respaldo...")
-        return get_products_catalog_fallback()
+        import traceback
+        traceback.print_exc()
+        return []
     
-    # Si no se encontraron productos, usar fallback
+    # Si no se encontraron productos, retornar lista vacía
     if not products:
-        print("⚠️  No se encontraron productos, usando catálogo de respaldo...")
-        return get_products_catalog_fallback()
+        print("⚠️  No se encontraron productos en el sitio web")
+        return []
     
     return products
 
-
-def extract_product_info(card, base_url: str) -> Dict:
+def extract_product_info(card, base_url: str, category: str = "", subcategory: str = "") -> Dict:
     """
     Extrae información de un elemento HTML de producto de PEISA.
     
     Estructura esperada:
     <a href="/productos/[nombre]">
         <article>
-            <div class="text-peisared-600">CATEGORÍA</div>
+            <div class="text-peisared-600">TIPO DE PRODUCTO</div>
             <h4>NOMBRE PRODUCTO</h4>
             <p>Descripción</p>
         </article>
@@ -94,6 +141,8 @@ def extract_product_info(card, base_url: str) -> Dict:
     Args:
         card: Elemento <a> que contiene el producto
         base_url: URL base del sitio
+        category: Categoría principal (h1) ej. "Calderas centrales"
+        subcategory: Subcategoría (texto rojo) ej. "De potencia"
         
     Returns:
         Diccionario con información del producto
@@ -105,9 +154,10 @@ def extract_product_info(card, base_url: str) -> Dict:
         if not article:
             return product
         
-        # Extraer categoría (texto en rojo)
-        category_elem = article.find('div', class_=re.compile(r'peisared|uppercase'))
-        category = category_elem.get_text(strip=True) if category_elem else ""
+        # Extraer tipo de producto (texto en rojo dentro del article)
+        # Ej: "CALDERA DE POTENCIA"
+        type_elem = article.find('div', class_=re.compile(r'peisared|uppercase'))
+        product_type = type_elem.get_text(strip=True) if type_elem else ""
         
         # Extraer nombre/modelo (h4)
         title_elem = article.find(['h4', 'h3', 'h2'])
@@ -121,36 +171,18 @@ def extract_product_info(card, base_url: str) -> Dict:
         if desc_elem:
             product['description'] = desc_elem.get_text(strip=True)
         else:
-            product['description'] = f"{category} - {product['model']}"
+            product['description'] = f"{product_type} - {product['model']}"
         
-        # Determinar familia/categoría
+        # Asignar categoría y tipo
+        product['category'] = category if category else "Sin categoría"
+        product['subcategory'] = subcategory if subcategory else ""
+        product['type'] = product_type if product_type else determine_type(product.get('model', ''))
+        
+        # Determinar familia basada en categoría principal
         if category:
             product['family'] = map_category_to_family(category)
         else:
             product['family'] = determine_family(product.get('model', ''))
-        
-        product['type'] = determine_type(product.get('model', ''))
-        
-        # Extraer potencia (si está disponible en el texto)
-        full_text = article.get_text()
-        power_match = re.search(r'(\d+)\s*(w|kw|kcal)', full_text, re.I)
-        if power_match:
-            power_value = int(power_match.group(1))
-            unit = power_match.group(2).lower()
-            if unit == 'kw':
-                power_value *= 1000
-            elif unit == 'kcal':
-                power_value = int(power_value * 1.163)  # Convertir kcal/h a W
-            product['power_w'] = power_value
-        else:
-            product['power_w'] = 0
-        
-        # Valores por defecto
-        product['features'] = []
-        product['applications'] = []
-        product['liters'] = 0
-        product['max_pressure_bar'] = 10
-        product['dimensions'] = "N/A"
         
         # URL del producto
         product_url = card.get('href', '')
@@ -163,6 +195,113 @@ def extract_product_info(card, base_url: str) -> Dict:
         print(f"    Error extrayendo info: {e}")
     
     return product
+
+
+def scrape_product_detail(product_url: str, headers: dict) -> Dict:
+    """
+    Extrae la ficha técnica completa de un producto individual.
+    
+    Extrae:
+    - Descripción completa del producto
+    - Características técnicas (lista de bullets)
+    - Ventajas (lista de bullets)
+    - Potencia, dimensiones, etc.
+    
+    Args:
+        product_url: URL completa del producto
+        headers: Headers HTTP para la petición
+        
+    Returns:
+        Diccionario con datos técnicos adicionales
+    """
+    technical_data = {
+        'technical_features': [],
+        'advantages': [],
+        'specifications': {}
+    }
+    
+    try:
+        response = requests.get(product_url, headers=headers, timeout=10)
+        response.raise_for_status()
+        
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        # Extraer descripción completa del producto
+        # La descripción está en el primer párrafo después del subtítulo (h2)
+        # Buscar el h2 con el subtítulo y luego el párrafo siguiente
+        subtitle = soup.find('h2')
+        if subtitle:
+            # Buscar el siguiente párrafo después del h2
+            next_p = subtitle.find_next('p')
+            if next_p:
+                desc_text = next_p.get_text(strip=True)
+                # Verificar que sea una descripción válida (más de 50 caracteres)
+                if len(desc_text) > 50:
+                    technical_data['description'] = desc_text
+        
+        # Si no se encontró con el método anterior, buscar en todo el contenido
+        if 'description' not in technical_data:
+            # Buscar todos los párrafos en el área principal
+            paragraphs = soup.find_all('p')
+            for p in paragraphs:
+                text = p.get_text(strip=True)
+                # La descripción es un párrafo largo que no contiene palabras clave de secciones
+                if (len(text) > 80 and 
+                    'Ventajas' not in text and 
+                    'Características' not in text and
+                    'garantía' not in text and
+                    'PUNTOS DE VENTA' not in text):
+                    technical_data['description'] = text
+                    break
+        
+        # Extraer ventajas (sección "Ventajas")
+        ventajas_section = soup.find('h3', string=re.compile(r'Ventajas', re.I))
+        if ventajas_section:
+            ventajas_list = ventajas_section.find_next('ul')
+            if ventajas_list:
+                technical_data['advantages'] = [
+                    li.get_text(strip=True) for li in ventajas_list.find_all('li')
+                ]
+        
+        # Extraer características técnicas (sección "Características Técnicas")
+        caracteristicas_section = soup.find('h3', string=re.compile(r'Características Técnicas', re.I))
+        if caracteristicas_section:
+            caracteristicas_list = caracteristicas_section.find_next('ul')
+            if caracteristicas_list:
+                technical_data['technical_features'] = [
+                    li.get_text(strip=True) for li in caracteristicas_list.find_all('li')
+                ]
+        
+        # Extraer especificaciones de cualquier lista de bullets visible
+        all_lists = soup.find_all('ul')
+        for ul in all_lists:
+            items = [li.get_text(strip=True) for li in ul.find_all('li')]
+            # Buscar especificaciones técnicas en formato "Clave: Valor"
+            for item in items:
+                if ':' in item:
+                    key, value = item.split(':', 1)
+                    technical_data['specifications'][key.strip()] = value.strip()
+        
+        # Extraer potencia si está en especificaciones
+        for key, value in technical_data['specifications'].items():
+            if 'potencia' in key.lower():
+                power_match = re.search(r'(\d+)\s*(w|kw|kcal)', value, re.I)
+                if power_match:
+                    power_value = int(power_match.group(1))
+                    unit = power_match.group(2).lower()
+                    if unit == 'kw':
+                        power_value *= 1000
+                    elif unit == 'kcal':
+                        power_value = int(power_value * 1.163)
+                    technical_data['power_w'] = power_value
+        
+        # Pequeña pausa
+        time.sleep(0.2)
+        
+    except Exception as e:
+        print(f"         ⚠️  Error obteniendo ficha técnica: {e}")
+    
+    return technical_data
 
 
 def map_category_to_family(category: str) -> str:
@@ -224,203 +363,31 @@ def determine_type(model_name: str) -> str:
     else:
         return "Producto de calefacción"
 
-
-def get_products_catalog_fallback() -> List[Dict]:
+def get_products_catalog(use_scraping: bool = True) -> List[Dict]:
     """
-    Retorna el catálogo de productos PEISA.
-    En producción, esto podría scrapear https://peisa.com.ar/productos
-    Por ahora, usamos un catálogo curado basado en productos reales.
-    """
-    return [
-        {
-            "model": "BROEN PLUS 800",
-            "family": "Radiadores",
-            "type": "Radiador de panel",
-            "power_w": 800,
-            "description": "Radiador de panel de acero de alta eficiencia, ideal para ambientes medianos de 8-12m². Diseño compacto y moderno con acabado esmaltado.",
-            "dimentions": "600x800mm",
-            "liters": 4.5,
-            "max_pressure_bar": 10,
-            "features": ["Alta eficiencia térmica", "Diseño compacto", "Fácil instalación"],
-            "applications": ["Dormitorios", "Oficinas", "Espacios medianos"]
-        },
-        {
-            "model": "BROEN PLUS 1200",
-            "family": "Radiadores",
-            "type": "Radiador de panel",
-            "power_w": 1200,
-            "description": "Radiador de panel de acero para espacios grandes de 12-18m². Excelente relación calidad-precio con distribución uniforme del calor.",
-            "dimentions": "600x1200mm",
-            "liters": 6.8,
-            "max_pressure_bar": 10,
-            "features": ["Mayor potencia", "Distribución uniforme", "Bajo consumo"],
-            "applications": ["Salas de estar", "Comedores", "Espacios amplios"]
-        },
-        {
-            "model": "BROEN PLUS 1600",
-            "family": "Radiadores",
-            "type": "Radiador de panel",
-            "power_w": 1600,
-            "description": "Radiador de alta potencia para ambientes grandes de 18-25m². Ideal para zonas frías con excelente rendimiento térmico.",
-            "dimentions": "600x1600mm",
-            "liters": 9.2,
-            "max_pressure_bar": 10,
-            "features": ["Alta potencia", "Zona fría", "Rendimiento superior"],
-            "applications": ["Living grandes", "Locales comerciales", "Zonas frías"]
-        },
-        {
-            "model": "PEISA PISO RADIANTE KIT 15m²",
-            "family": "Piso Radiante",
-            "type": "Sistema completo",
-            "power_w": 1500,
-            "description": "Kit completo de piso radiante para 15m². Incluye tubería PEX, colector, aislación y accesorios. Confort térmico superior.",
-            "dimentions": "Kit para 15m²",
-            "liters": 0,
-            "max_pressure_bar": 6,
-            "features": ["Confort superior", "Ahorro energético", "Distribución uniforme"],
-            "applications": ["Construcciones nuevas", "Renovaciones", "Baños"]
-        },
-        {
-            "model": "PEISA PISO RADIANTE KIT 30m²",
-            "family": "Piso Radiante",
-            "type": "Sistema completo",
-            "power_w": 3000,
-            "description": "Kit completo de piso radiante para 30m². Sistema eficiente con control de temperatura por zona. Ideal para viviendas.",
-            "dimentions": "Kit para 30m²",
-            "liters": 0,
-            "max_pressure_bar": 6,
-            "features": ["Control por zonas", "Máximo confort", "Eficiencia energética"],
-            "applications": ["Departamentos", "Casas", "Oficinas"]
-        },
-        {
-            "model": "CALDERA PEISA 12000",
-            "family": "Calderas",
-            "type": "Caldera mural",
-            "power_w": 12000,
-            "description": "Caldera mural de condensación de alta eficiencia para hasta 100m². Modulante con control digital y bajo consumo.",
-            "dimentions": "800x450x350mm",
-            "liters": 0,
-            "max_pressure_bar": 3,
-            "features": ["Condensación", "Modulante", "Control digital", "Bajo consumo"],
-            "applications": ["Departamentos", "Casas pequeñas", "Calefacción central"]
-        },
-        {
-            "model": "CALDERA PEISA 24000",
-            "family": "Calderas",
-            "type": "Caldera mural",
-            "power_w": 24000,
-            "description": "Caldera mural de condensación para hasta 200m². Doble servicio: calefacción y agua caliente sanitaria. Alta eficiencia.",
-            "dimentions": "900x500x400mm",
-            "liters": 0,
-            "max_pressure_bar": 3,
-            "features": ["Doble servicio", "Alta potencia", "Eficiencia A++", "Silenciosa"],
-            "applications": ["Casas grandes", "Locales", "Instalaciones completas"]
-        },
-        {
-            "model": "TERMOTANQUE PEISA 80L",
-            "family": "Termotanques",
-            "type": "Termotanque eléctrico",
-            "power_w": 1500,
-            "description": "Termotanque eléctrico de 80 litros para 3-4 personas. Resistencia blindada, aislación de poliuretano de alta densidad.",
-            "dimentions": "450x450x900mm",
-            "liters": 80,
-            "max_pressure_bar": 8,
-            "features": ["Resistencia blindada", "Aislación superior", "Termostato regulable"],
-            "applications": ["Familias 3-4 personas", "Departamentos", "Casas"]
-        },
-        {
-            "model": "TERMOTANQUE PEISA 120L",
-            "family": "Termotanques",
-            "type": "Termotanque eléctrico",
-            "power_w": 2000,
-            "description": "Termotanque eléctrico de 120 litros para 4-6 personas. Mayor capacidad con recuperación rápida de temperatura.",
-            "dimentions": "500x500x1100mm",
-            "liters": 120,
-            "max_pressure_bar": 8,
-            "features": ["Mayor capacidad", "Recuperación rápida", "Bajo consumo"],
-            "applications": ["Familias grandes", "Casas", "Alto consumo ACS"]
-        },
-        {
-            "model": "RADIADOR TOALLERO 500W",
-            "family": "Radiadores",
-            "type": "Radiador toallero",
-            "power_w": 500,
-            "description": "Radiador toallero cromado para baño. Conexión lateral, diseño elegante. Ideal para baños de 4-6m².",
-            "dimentions": "500x1200mm",
-            "liters": 2.5,
-            "max_pressure_bar": 10,
-            "features": ["Diseño elegante", "Cromado", "Doble función"],
-            "applications": ["Baños", "Toilettes", "Vestidores"]
-        },
-        {
-            "model": "COLECTOR PISO RADIANTE 8 VIAS",
-            "family": "Piso Radiante",
-            "type": "Accesorio",
-            "power_w": 0,
-            "description": "Colector de latón con 8 vías para distribución de piso radiante. Incluye caudalímetros y válvulas de corte.",
-            "dimentions": "600x300mm",
-            "liters": 0,
-            "max_pressure_bar": 6,
-            "features": ["8 circuitos", "Caudalímetros incluidos", "Latón cromado"],
-            "applications": ["Instalaciones piso radiante", "Control por zonas"]
-        },
-        {
-            "model": "BOMBA CIRCULADORA WILO 25-40",
-            "family": "Accesorios",
-            "type": "Bomba circuladora",
-            "power_w": 45,
-            "description": "Bomba circuladora de alta eficiencia clase A para sistemas de calefacción. 3 velocidades ajustables.",
-            "dimentions": "180x150mm",
-            "liters": 0,
-            "max_pressure_bar": 10,
-            "features": ["Clase A", "3 velocidades", "Silenciosa", "Bajo consumo"],
-            "applications": ["Sistemas de calefacción", "Piso radiante", "Radiadores"]
-        },
-        {
-            "model": "VALVULA TERMOSTATICA",
-            "family": "Accesorios",
-            "type": "Válvula",
-            "power_w": 0,
-            "description": "Válvula termostática para radiadores. Control preciso de temperatura ambiente con cabezal regulable.",
-            "dimentions": "1/2 pulgada",
-            "liters": 0,
-            "max_pressure_bar": 10,
-            "features": ["Control preciso", "Ahorro energético", "Fácil instalación"],
-            "applications": ["Radiadores", "Control individual", "Ahorro energético"]
-        },
-        {
-            "model": "VASO EXPANSION 12L",
-            "family": "Accesorios",
-            "type": "Vaso de expansión",
-            "power_w": 0,
-            "description": "Vaso de expansión de 12 litros para sistemas de calefacción cerrados. Membrana EPDM de alta calidad.",
-            "dimentions": "270x350mm",
-            "liters": 12,
-            "max_pressure_bar": 10,
-            "features": ["Membrana EPDM", "Alta durabilidad", "Precargado"],
-            "applications": ["Sistemas cerrados", "Calderas", "Instalaciones completas"]
-        }
-    ]
-
-def get_products_catalog(use_scraping: bool = False) -> List[Dict]:
-    """
-    Retorna el catálogo de productos PEISA.
+    Retorna el catálogo de productos PEISA mediante scraping.
     
     Args:
-        use_scraping: Si True, intenta hacer scraping real. Si False, usa fallback.
+        use_scraping: Si True, intenta hacer scraping real del sitio web.
         
     Returns:
-        Lista de productos
+        Lista de productos extraídos del sitio web
     """
     if use_scraping:
         return scrape_peisa_products()
     else:
-        return get_products_catalog_fallback()
+        # Si no se quiere scraping, cargar desde archivo existente
+        try:
+            with open("data/products_catalog.json", "r", encoding="utf-8") as f:
+                return json.load(f)
+        except FileNotFoundError:
+            print("⚠️  Archivo products_catalog.json no encontrado. Ejecutando scraping...")
+            return scrape_peisa_products()
 
 
 def save_catalog(filename: str = "data/products_catalog.json", use_scraping: bool = True):
     """
-    Guarda el catálogo en un archivo JSON.
+    Guarda el catálogo en un archivo JSON, actualizando productos existentes.
     
     Args:
         filename: Ruta donde guardar el archivo
@@ -436,20 +403,52 @@ def save_catalog(filename: str = "data/products_catalog.json", use_scraping: boo
     print(f"🚀 SCRAPER DE PRODUCTOS PEISA")
     print(f"{'='*60}\n")
     
-    # Obtener productos (con o sin scraping)
-    products = get_products_catalog(use_scraping=use_scraping)
+    # Cargar catálogo existente si existe
+    existing_products = {}
+    if os.path.exists(filename):
+        try:
+            with open(filename, 'r', encoding='utf-8') as f:
+                existing_list = json.load(f)
+                # Indexar por URL para búsqueda rápida
+                existing_products = {p.get('url'): p for p in existing_list if p.get('url')}
+                print(f"📂 Catálogo existente cargado: {len(existing_products)} productos")
+        except Exception as e:
+            print(f"⚠️  Error cargando catálogo existente: {e}")
+    
+    # Obtener productos del scraping
+    new_products = get_products_catalog(use_scraping=use_scraping)
+    
+    # Actualizar o agregar productos
+    updated_count = 0
+    added_count = 0
+    
+    for product in new_products:
+        product_url = product.get('url')
+        if product_url in existing_products:
+            # Actualizar producto existente
+            existing_products[product_url].update(product)
+            updated_count += 1
+        else:
+            # Agregar nuevo producto
+            existing_products[product_url] = product
+            added_count += 1
+    
+    # Convertir diccionario de vuelta a lista
+    final_products = list(existing_products.values())
     
     # Guardar en JSON
     with open(filename, 'w', encoding='utf-8') as f:
-        json.dump(products, f, ensure_ascii=False, indent=2)
+        json.dump(final_products, f, ensure_ascii=False, indent=2)
     
     print(f"\n{'='*60}")
     print(f"✅ Catálogo guardado exitosamente")
     print(f"📁 Archivo: {filename}")
-    print(f"📦 Total productos: {len(products)}")
+    print(f"📦 Total productos: {len(final_products)}")
+    print(f"   ├─ ✨ Nuevos: {added_count}")
+    print(f"   └─ 🔄 Actualizados: {updated_count}")
     print(f"{'='*60}\n")
     
-    return products
+    return final_products
 
 
 if __name__ == "__main__":
@@ -460,8 +459,10 @@ if __name__ == "__main__":
     
     if use_scraping:
         print("🌐 Modo: SCRAPING REAL de https://peisa.com.ar/productos")
+        print("   - Actualiza productos existentes")
+        print("   - Agrega productos nuevos")
     else:
-        print("📋 Modo: Catálogo de respaldo (sin scraping)")
+        print("📋 Modo: Cargar desde archivo existente (sin scraping)")
     
     # Ejecutar scraping y guardar
     products = save_catalog(use_scraping=use_scraping)
@@ -482,5 +483,5 @@ if __name__ == "__main__":
     print(f"\n📋 PRODUCTOS EXTRAÍDOS:")
     print(f"{'='*60}")
     for idx, p in enumerate(products, 1):
-        power = f"{p['power_w']}W" if p['power_w'] > 0 else "N/A"
-        print(f"  {idx:2d}. {p['model']:<40} ({p['family']}) - {power}")
+        category = p.get('category', 'N/A')
+        print(f"  {idx:2d}. {p['model']:<40} ({p['family']}) - {category}")
