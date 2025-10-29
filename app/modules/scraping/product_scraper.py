@@ -235,6 +235,12 @@ def scrape_product_detail(product_url: str, headers: dict) -> Dict:
             next_p = subtitle.find_next('p')
             if next_p:
                 desc_text = next_p.get_text(strip=True)
+                # Separar la descripción de las ventajas si están juntas
+                # Buscar donde empieza "Ventajas" o "VentajasX" (sin espacio)
+                if 'Ventajas' in desc_text:
+                    # Dividir en la palabra "Ventajas"
+                    desc_text = desc_text.split('Ventajas')[0].strip()
+                
                 # Verificar que sea una descripción válida (más de 50 caracteres)
                 if len(desc_text) > 50:
                     technical_data['description'] = desc_text
@@ -245,9 +251,13 @@ def scrape_product_detail(product_url: str, headers: dict) -> Dict:
             paragraphs = soup.find_all('p')
             for p in paragraphs:
                 text = p.get_text(strip=True)
+                
+                # Separar la descripción de las ventajas si están juntas
+                if 'Ventajas' in text:
+                    text = text.split('Ventajas')[0].strip()
+                
                 # La descripción es un párrafo largo que no contiene palabras clave de secciones
                 if (len(text) > 80 and 
-                    'Ventajas' not in text and 
                     'Características' not in text and
                     'garantía' not in text and
                     'PUNTOS DE VENTA' not in text):
@@ -255,6 +265,7 @@ def scrape_product_detail(product_url: str, headers: dict) -> Dict:
                     break
         
         # Extraer ventajas (sección "Ventajas")
+        # Primero intentar extraer de una lista <ul> después de un <h3>Ventajas</h3>
         ventajas_section = soup.find('h3', string=re.compile(r'Ventajas', re.I))
         if ventajas_section:
             ventajas_list = ventajas_section.find_next('ul')
@@ -263,8 +274,36 @@ def scrape_product_detail(product_url: str, headers: dict) -> Dict:
                     li.get_text(strip=True) for li in ventajas_list.find_all('li')
                 ]
         
-        # Extraer características técnicas (sección "Características Técnicas")
-        caracteristicas_section = soup.find('h3', string=re.compile(r'Características Técnicas', re.I))
+        # Si no se encontraron ventajas en una lista <ul>, buscar en el texto del párrafo
+        if not technical_data['advantages']:
+            # Buscar el párrafo que contiene "Ventajas"
+            subtitle = soup.find('h2')
+            if subtitle:
+                next_p = subtitle.find_next('p')
+                if next_p:
+                    full_text = next_p.get_text(strip=True)
+                    # Si el párrafo contiene "Ventajas", extraer la parte de ventajas
+                    if 'Ventajas' in full_text:
+                        ventajas_text = full_text.split('Ventajas', 1)[1] if 'Ventajas' in full_text else ''
+                        if ventajas_text:
+                            # Dividir por puntos seguidos de mayúscula o por saltos de línea
+                            ventajas_items = []
+                            # Dividir por punto seguido de mayúscula
+                            parts = re.split(r'\.(?=[A-Z])', ventajas_text)
+                            for part in parts:
+                                part = part.strip()
+                                if len(part) > 10:  # Filtrar fragmentos muy cortos
+                                    # Agregar el punto final si no lo tiene
+                                    if not part.endswith('.'):
+                                        part += '.'
+                                    ventajas_items.append(part)
+                            
+                            if ventajas_items:
+                                technical_data['advantages'] = ventajas_items
+        
+        # Extraer características técnicas (sección "Características Técnicas" o "Características técnicas")
+        # Buscar cualquier encabezado que contenga "características" y "técnicas"
+        caracteristicas_section = soup.find(['h2', 'h3', 'h4'], string=re.compile(r'Características\s+técnicas', re.I))
         if caracteristicas_section:
             caracteristicas_list = caracteristicas_section.find_next('ul')
             if caracteristicas_list:
