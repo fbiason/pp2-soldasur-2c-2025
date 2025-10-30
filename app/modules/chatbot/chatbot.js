@@ -248,9 +248,19 @@ function filterRelevantProducts(userMessage, catalog) {
     const needsRadiator = msg.includes('radiador') || msg.includes('ambiente') || msg.includes('habitación') || msg.includes('habitacion');
     const needsBoiler = msg.includes('caldera') || msg.includes('casa') || msg.includes('toda');
     const needsElectric = msg.includes('eléctrico') || msg.includes('electrico') || msg.includes('enchufe');
+    const needsTowelRack = msg.includes('toallero') || msg.includes('toalla');
     
     // Filtrar por familia/categoría relevante
-    if (needsRadiator || (needsHeating && !needsBoiler)) {
+    if (needsTowelRack) {
+        // Priorizar toalleros
+        relevantProducts = catalog.filter(p => 
+            p.category === 'Toalleros' || 
+            p.type?.toLowerCase().includes('toallero') ||
+            p.model.toLowerCase().includes('toallero') ||
+            p.model.toLowerCase().includes('domino') ||
+            p.model.toLowerCase().includes('scala')
+        );
+    } else if (needsRadiator || (needsHeating && !needsBoiler)) {
         // Priorizar radiadores
         relevantProducts = catalog.filter(p => 
             p.family === 'Radiadores' || 
@@ -348,6 +358,9 @@ Usuario: "Tengo frío"
 Usuario: "Necesito calefacción"
 ✅ Soldy: "Te recomiendo la Prima Tec Smart porque es caldera doble servicio con 90% eficiencia y control wifi. Calefaccionás toda tu casa y tenés agua caliente."
 
+Usuario: "Quiero un toallero"
+✅ Soldy: "Te recomiendo el Domino S porque mantiene las toallas tibias y secas, con diseño minimalista blanco. Es eléctrico, fácil de instalar y calienta tu baño."
+
 Usuario: "¿Qué opciones tengo?"
 ✅ Soldy: "Tenés 3 opciones: Prima Tec Smart (caldera wifi), Radiador Broen E (eléctrico), o Caldera Diva 24 (doble servicio económica)."
 
@@ -367,6 +380,10 @@ Usuario: "Tengo frío"
 ❌ "Entiendo que tengas frío. ¿Te puedo ayudar?"
 ❌ "Para el frío, hay varias opciones de calefacción."
 ❌ "Poné un sudadero o una camiseta ligera sobre tu ropa." (ESTO ES ROPA, NO VENDEMOS ROPA)
+
+Usuario: "Quiero un toallero"
+❌ "Te recomiendo el Broen porque es radiador..." (BROEN ES RADIADOR, NO TOALLERO)
+✅ "Te recomiendo el Domino S porque es toallero eléctrico..." (CORRECTO)
 
 REGLA DE ORO: Si NO mencionás un producto específico por nombre DEL CATÁLOGO ARRIBA, tu respuesta está MAL.
 
