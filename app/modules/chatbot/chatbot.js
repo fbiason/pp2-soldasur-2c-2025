@@ -182,10 +182,42 @@ async function handleChatInput() {
             const cleanMessage = cleanHtmlFromMessage(response.message);
             appendMessage('system', cleanMessage);
             
-            // Detectar si la respuesta pregunta por la ciudad
+            // Detectar si la respuesta pregunta por la ciudad y mostrar botones
             if (response.message.toLowerCase().includes('río grande o ushuaia') || 
                 response.message.toLowerCase().includes('rio grande o ushuaia')) {
                 waitingForCity = true;
+                
+                // Mostrar botones de ciudad
+                setTimeout(() => {
+                    const chatContainer = document.getElementById('chat-container');
+                    const buttonsDiv = document.createElement('div');
+                    buttonsDiv.className = 'fade-in mt-2 flex gap-2';
+                    
+                    const btnRG = document.createElement('button');
+                    btnRG.className = 'text-sm px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors';
+                    btnRG.textContent = 'Río Grande';
+                    btnRG.onclick = () => { 
+                        appendMessage('user', 'Río Grande');
+                        showContactInfo('riogrande'); 
+                        waitingForCity = false; 
+                        showChatInput(); 
+                    };
+                    
+                    const btnUsh = document.createElement('button');
+                    btnUsh.className = 'text-sm px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors';
+                    btnUsh.textContent = 'Ushuaia';
+                    btnUsh.onclick = () => { 
+                        appendMessage('user', 'Ushuaia');
+                        showContactInfo('ushuaia'); 
+                        waitingForCity = false; 
+                        showChatInput(); 
+                    };
+                    
+                    buttonsDiv.appendChild(btnRG);
+                    buttonsDiv.appendChild(btnUsh);
+                    chatContainer.appendChild(buttonsDiv);
+                    scrollToBottom();
+                }, 300);
             }
             
             // Si Ollama recomienda productos, mostrarlos
@@ -345,16 +377,15 @@ PROHIBIDO ABSOLUTAMENTE:
 ❌ SOLO productos PEISA del catálogo arriba
 
 MANEJO DE CONSULTAS DE PRECIO:
-Si preguntan por precio/costo:
-1. IDENTIFICA el producto del contexto (ej: si acaban de hablar de Prima Tec Smart, ese es el producto)
-2. CONFIRMA el producto: "Entiendo que te interesa [PRODUCTO]"
-3. Responde: "No puedo darte precios exactos, pero para consultar por [PRODUCTO], ¿estás en Río Grande o Ushuaia?"
+Si preguntan por precio/costo, responde de forma CORTA y DIRECTA:
+"Para precios y compras, ¿estás en Río Grande o Ushuaia?"
+
+IMPORTANTE: Río Grande y Ushuaia están en TIERRA DEL FUEGO (NO en Capital Federal).
 
 Ejemplo:
 Usuario: "Cuanto está? Me interesa"
-Contexto: Productos ya recomendados: Prima Tec Smart
-✅ Soldy: "Entiendo que te interesa la Prima Tec Smart. No puedo darte precios exactos, pero para consultar por esta caldera, ¿estás en Río Grande o Ushuaia?"
-❌ Soldy: "¿A qué te referís?" (IGNORA el contexto)
+✅ Soldy: "Para precios y compras, ¿estás en Río Grande o Ushuaia?"
+❌ Soldy: "Lo siento, pero no puedo darte precios exactos sin conocer tu ubicación geográfica..." (MUY LARGO)
 
 IMPORTANTE:
 ✓ SIEMPRE menciona AL MENOS 1 producto por nombre
@@ -610,6 +641,17 @@ function detectMentionedProducts(message) {
     const mentioned = [];
     const messageLower = message.toLowerCase();
     
+    // Solo detectar si el mensaje contiene "te recomiendo" o "recomiendo"
+    // Esto evita mostrar tarjetas en respuestas que no son recomendaciones
+    const isRecommendation = messageLower.includes('te recomiendo') || 
+                            messageLower.includes('recomiendo') ||
+                            messageLower.includes('te sugiero') ||
+                            messageLower.includes('sugiero');
+    
+    if (!isRecommendation) {
+        return []; // No mostrar tarjetas si no es una recomendación
+    }
+    
     // Ordenar productos por longitud de nombre (más largos primero)
     // Esto evita que "Broen" se detecte cuando en realidad es "Radiador Eléctrico Broen E"
     const sortedProducts = [...catalogToUse].sort((a, b) => b.model.length - a.model.length);
@@ -629,22 +671,8 @@ function detectMentionedProducts(message) {
         }
     }
     
-    // Si no se mencionan productos específicos pero se habla de categorías
-    if (mentioned.length === 0) {
-        if (messageLower.includes('caldera') || messageLower.includes('calderas')) {
-            return catalogToUse.filter(p => p.family === 'Calderas').slice(0, 3);
-        } else if (messageLower.includes('radiador') || messageLower.includes('radiadores')) {
-            return catalogToUse.filter(p => p.family === 'Radiadores').slice(0, 3);
-        } else if (messageLower.includes('toallero') || messageLower.includes('toalleros')) {
-            return catalogToUse.filter(p => p.family === 'Radiadores' && p.type?.toLowerCase().includes('toallero')).slice(0, 3);
-        } else if (messageLower.includes('termotanque') || messageLower.includes('termotanques')) {
-            return catalogToUse.filter(p => p.family === 'Termotanques').slice(0, 3);
-        } else if (messageLower.includes('calefón') || messageLower.includes('calefones')) {
-            return catalogToUse.filter(p => p.family === 'Calefones').slice(0, 3);
-        }
-    }
-    
-    return mentioned.slice(0, 5); // Limitar a 5 productos
+    // NO mostrar productos por categoría genérica - solo productos específicos mencionados
+    return mentioned.slice(0, 3); // Limitar a 3 productos máximo
 }
 
 /* Limpiar HTML crudo del mensaje para humanizarlo */
