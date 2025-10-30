@@ -301,3 +301,112 @@ function updateModeIndicator(mode, label) {
         }
     }
 }
+
+/* ========== CONSULTA SUCURSAL (RIO GRANDE / USHUAIA) ========== */
+function consultSucursal(city = null, showOnPage = true) {
+    const sel = document.getElementById('city-select');
+    const res = document.getElementById('sucursal-result');
+    // determine city: priority param -> selector -> default
+    const selectedCity = city || (sel ? sel.value : null);
+    // info map
+    const info = {
+        rio_grande: {
+            name: 'Sucursal Río Grande - Soldasur',
+            address: 'Av. San Martín 1234, Río Grande, Tierra del Fuego',
+            phone: '+54 2964 123456',
+            email: 'riogrande@soldasur.com'
+        },
+        ushuaia: {
+            name: 'Sucursal Ushuaia - Soldasur',
+            address: 'Calle 9 de Julio 210, Ushuaia, Tierra del Fuego',
+            phone: '+54 2901 654321',
+            email: 'ushuaia@soldasur.com'
+        }
+    };
+
+    const c = info[selectedCity];
+    if (!c) {
+        if (res) res.innerHTML = '';
+        return;
+    }
+
+    // Mostrar en el widget (solo si showOnPage)
+    if (showOnPage && res) {
+        res.innerHTML = `
+            <div class="p-3 bg-blue-50 rounded">
+                <div class="font-semibold">${c.name}</div>
+                <div class="text-sm text-gray-700">${c.address}</div>
+                <div class="text-sm">Tel: <a href="tel:${c.phone.replace(/\s+/g,'')}" class="text-blue-600">${c.phone}</a></div>
+                <div class="text-sm">Email: <a href="mailto:${c.email}" class="text-blue-600">${c.email}</a></div>
+            </div>
+        `;
+    }
+
+    // Añadir también un mensaje al chat para que quede en el historial
+    if (typeof appendMessage === 'function') {
+        // Si no se pasó ciudad y la llamada viene desde el chat (showOnPage=false),
+        // presentar opciones interactivas para elegir sucursal dentro del chat.
+        if (!selectedCity && !showOnPage) {
+            const optionsHtml = `
+                <div class="sucursal-options" style="display:flex;gap:8px;margin-top:8px;">
+                    <button class="inline-block bg-blue-600 text-white px-3 py-1 rounded text-sm" onclick="consultSucursalFromChat('rio_grande')">Río Grande</button>
+                    <button class="inline-block bg-blue-600 text-white px-3 py-1 rounded text-sm" onclick="consultSucursalFromChat('ushuaia')">Ushuaia</button>
+                </div>
+            `;
+            appendMessage('system', `Seleccioná la sucursal:${optionsHtml}`);
+        } else {
+            // Añadir mensaje al chat con botones junto a la tarjeta de contacto
+            const chatHtml = `
+                <div class="sucursal-card">
+                    <strong>${c.name}</strong><br>
+                    ${c.address}<br>
+                    Tel: <a href="tel:${c.phone.replace(/\s+/g,'')}" class="text-blue-600">${c.phone}</a><br>
+                    Email: <a href="mailto:${c.email}" class="text-blue-600">${c.email}</a>
+                    <div style="margin-top:8px; display:flex; gap:8px;">
+                        <a href="tel:${c.phone.replace(/\s+/g,'')}" class="inline-block bg-blue-600 text-white px-3 py-1 rounded text-sm">Llamar</a>
+                        <a href="mailto:${c.email}" class="inline-block bg-gray-200 text-gray-800 px-3 py-1 rounded text-sm">Email</a>
+                        <button onclick="scrollToSucursal('${selectedCity}')" class="inline-block bg-green-600 text-white px-3 py-1 rounded text-sm">Ver sucursal</button>
+                    </div>
+                </div>
+            `;
+            appendMessage('system', chatHtml);
+        }
+    }
+    // Asegurar scroll al final
+    scrollToBottom();
+}
+
+// Desplazar a la tarjeta de sucursal en la página y aplicar un breve highlight
+function scrollToSucursal(city) {
+    const el = document.getElementById('sucursal-result');
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // efecto highlight
+    el.style.transition = 'box-shadow 0.3s ease, transform 0.15s ease';
+    el.style.boxShadow = '0 6px 18px rgba(59,130,246,0.25)';
+    el.style.transform = 'translateY(-2px)';
+    setTimeout(() => {
+        el.style.boxShadow = '';
+        el.style.transform = '';
+    }, 1200);
+}
+
+/* ========== CONSULTAR DESDE PRODUCTO ========== */
+function consultFromProduct(productModel) {
+    // Abrir chat si está cerrado
+    if (!chatIsOpen) toggleChat();
+    // Añadir mensaje de usuario indicando interés en el producto
+    appendMessage('user', `Estoy interesado en: <strong>${productModel}</strong>`);
+    // Mostrar la sección de consulta si existe
+    const sel = document.getElementById('city-select');
+    // Iniciar flujo de consulta dentro del chat: mostrar opciones de sucursal
+    consultSucursal(null, false);
+}
+
+// Función llamada desde los botones de opciones dentro del chat
+function consultSucursalFromChat(city) {
+    // Añadir un mensaje de confirmación de selección en el chat
+    appendMessage('user', `Seleccioné: <strong>${city === 'rio_grande' ? 'Río Grande' : 'Ushuaia'}</strong>`);
+    // Mostrar la tarjeta correspondiente en el chat (sin actualizar la página)
+    consultSucursal(city, false);
+}

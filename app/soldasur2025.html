@@ -10,7 +10,7 @@
 <body class="bg-gray-100 min-h-screen">
     <!-- Banner de Demo -->
     <div class="demo-banner">
-        🤖 ASISTENTE INTELIGENTE CON IA - Integrado con Ollama (Llama 3.2) | Productos reales de PEISA
+         ASISTENTE INTELIGENTE CON IA - Integrado con Ollama (Llama 3.2) | Productos reales de PEISA
     </div>
     
     <!-- Contenido de ejemplo de la página -->
@@ -24,17 +24,17 @@
                 </p>
                 <div class="grid md:grid-cols-3 gap-6 mt-8">
                     <div class="bg-blue-50 p-6 rounded-lg">
-                        <div class="text-3xl mb-3">🔥</div>
+                        <div class="text-3xl mb-3"></div>
                         <h3 class="font-bold text-lg mb-2">Calefacción</h3>
                         <p class="text-sm text-gray-600">Calderas, radiadores y sistemas de piso radiante</p>
                     </div>
                     <div class="bg-blue-50 p-6 rounded-lg">
-                        <div class="text-3xl mb-3">💧</div>
+                        <div class="text-3xl mb-3"></div>
                         <h3 class="font-bold text-lg mb-2">Agua Caliente</h3>
                         <p class="text-sm text-gray-600">Termotanques, calefones y sistemas solares</p>
                     </div>
                     <div class="bg-blue-50 p-6 rounded-lg">
-                        <div class="text-3xl mb-3">🏊</div>
+                        <div class="text-3xl mb-3"></div>
                         <h3 class="font-bold text-lg mb-2">Climatización</h3>
                         <p class="text-sm text-gray-600">Bombas de calor y climatizadores de piscina</p>
                     </div>
@@ -47,7 +47,7 @@
                     <strong>Soldy</strong>, nuestro asistente inteligente con IA, está listo para ayudarte a encontrar la solución perfecta para tu hogar.
                 </p>
                 <div class="flex items-center justify-center gap-2">
-                    <span class="text-2xl">👋</span>
+                    <span class="text-2xl"></span>
                     <span class="font-semibold">¡Haz clic en Soldy en la esquina inferior derecha!</span>
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
@@ -79,7 +79,7 @@
     <!-- Mensaje de bienvenida de Soldy -->
     <div class="soldy-message" id="soldy-message">
         <div class="soldy-message-text">
-            <span class="soldy-hand">👋</span> ¡Hola! Soy <strong>Soldy</strong>, tu asistente de SOLDASUR
+            <span class="soldy-hand"></span> ¡Hola! Soy <strong>Soldy</strong>, tu asistente de SOLDASUR
         </div>
         <div class="soldy-message-cta">
             ¿En qué puedo ayudarte hoy?
@@ -141,7 +141,7 @@
             
             <!-- Panel de contexto (opcional) -->
             <div id="context-panel" class="context-panel hidden">
-                <div class="font-semibold mb-2">📊 Contexto actual:</div>
+                <div class="font-semibold mb-2"> Contexto actual:</div>
                 <div id="context-items"></div>
             </div>
             
@@ -150,6 +150,19 @@
             
             <!-- Input area -->
             <div id="input-area" class="p-4 border-t border-gray-200 bg-gray-50 mt-auto"></div>
+        </div>
+    </div>
+
+    <!-- Widget de consulta de sucursal -->
+    <div class="max-w-4xl mx-auto px-4 py-6">
+        <div class="bg-white rounded-lg shadow p-4 flex items-center gap-3">
+            <label for="city-select" class="font-medium">Consultar sucursal:</label>
+            <select id="city-select" class="border border-gray-300 rounded px-3 py-2">
+                <option value="rio_grande">Río Grande</option>
+                <option value="ushuaia">Ushuaia</option>
+            </select>
+            <button id="consult-btn" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" onclick="consultSucursal()">Consultar</button>
+            <div id="sucursal-result" class="ml-auto text-sm text-gray-700"></div>
         </div>
     </div>
 <!-- Cargar módulos en orden -->

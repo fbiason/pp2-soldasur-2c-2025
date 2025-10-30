@@ -759,9 +759,12 @@ function renderProducts(products) {
                         </span>
                     </div>
                 </div>
-                <a href="${product.url}" target="_blank" style="color: #2563eb; text-decoration: none; font-size: 20px; margin-left: 12px;">
-                    ↗
-                </a>
+                <div style="display:flex; align-items:center; gap:8px; margin-left:12px;">
+                    <button class="consult-btn" style="background:#2563eb;color:white;border:none;padding:6px 10px;border-radius:6px;font-size:13px;cursor:pointer;" onclick="(function(e){e.stopPropagation(); consultFromProduct('${product.model.replace(/'/g,"\\'")}');})(event)">Consultar</button>
+                    <a href="${product.url}" target="_blank" style="color: #2563eb; text-decoration: none; font-size: 20px;">
+                        ↗
+                    </a>
+                </div>
             </div>
         `;
         
