@@ -68,25 +68,66 @@ function calculateHeatingLoad() {
     }, 500);
 }
 
-/* Mostrar productos recomendados según el tipo */
+/* Mostrar productos recomendados según el tipo y características */
 function showRecommendedProducts(tipo) {
+    // Usar el catálogo JSON cargado globalmente
+    const catalogToUse = peisaProductsFromJSON || [];
+    
+    if (catalogToUse.length === 0) {
+        console.error('❌ Catálogo de productos no cargado');
+        return;
+    }
+    
+    const cargaTermica = parseFloat(contextData['Carga térmica']) || 0;
     let recommendedProducts = [];
+    
+    // Filtrar por tipo de sistema
     if (tipo.toLowerCase().includes('radiador')) {
-        recommendedProducts = peisaProducts.filter(p => p.family === 'Radiadores');
+        // Para radiadores, recomendar según la carga térmica
+        recommendedProducts = catalogToUse.filter(p => p.family === 'Radiadores');
+        
+        // Priorizar radiadores eléctricos para cargas pequeñas (<2000W)
+        if (cargaTermica < 2000) {
+            recommendedProducts = recommendedProducts.filter(p => 
+                p.model.toLowerCase().includes('eléctrico') || 
+                p.model.toLowerCase().includes('electrico')
+            );
+        }
     } else if (tipo.toLowerCase().includes('caldera')) {
-        recommendedProducts = peisaProducts.filter(p => p.family === 'Calderas');
+        // Para calderas, recomendar calderas murales
+        recommendedProducts = catalogToUse.filter(p => 
+            p.family === 'Calderas' && 
+            (p.category?.toLowerCase().includes('mural') || 
+             p.description?.toLowerCase().includes('mural'))
+        );
     } else if (tipo.toLowerCase().includes('piso')) {
-        recommendedProducts = peisaProducts.filter(p => 
-            p.family === 'Calderas' || p.model.toLowerCase().includes('piso')
+        // Para piso radiante, recomendar calderas doble servicio
+        recommendedProducts = catalogToUse.filter(p => 
+            p.family === 'Calderas' && 
+            (p.description?.toLowerCase().includes('doble servicio') ||
+             p.model.toLowerCase().includes('prima'))
         );
     }
     
+    // Si no hay productos específicos, usar productos populares
     if (recommendedProducts.length === 0) {
-        recommendedProducts = [...peisaProducts.filter(p => p.family === 'Calderas').slice(0, 2),
-                              ...peisaProducts.filter(p => p.family === 'Radiadores').slice(0, 2)];
+        recommendedProducts = catalogToUse.filter(p => 
+            p.model.includes('Prima Tec Smart') || 
+            p.model.includes('Radiador Eléctrico Broen E') ||
+            p.model.includes('Caldera Diva')
+        );
     }
     
-    renderProducts(recommendedProducts.slice(0, 5));
+    // Limitar a máximo 3 productos, mínimo 1
+    const finalProducts = recommendedProducts.slice(0, 3);
+    
+    console.log('💡 Productos recomendados para', tipo, '(carga:', cargaTermica, 'W):', finalProducts.length);
+    
+    if (finalProducts.length > 0) {
+        renderProducts(finalProducts);
+    } else {
+        console.error('❌ No se encontraron productos para recomendar');
+    }
 }
 
 /* Manejar respuestas del sistema experto */
