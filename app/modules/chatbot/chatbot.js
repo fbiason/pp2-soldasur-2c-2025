@@ -156,27 +156,8 @@ async function handleChatInput() {
             return;
         }
         
-        // Interceptar consultas de precio/costo y derivar a ventas
-        if (isPriceQuestion(question)) {
-            waitingForCity = true;
-            appendMessage('system', 'Para precios y compras, ¿estás en Río Grande o Ushuaia?');
-            // Botones rápidos
-            const chatContainer = document.getElementById('chat-container');
-            const div = document.createElement('div');
-            div.className = 'fade-in mt-2 flex gap-2';
-            const btnRG = document.createElement('button');
-            btnRG.className = 'text-xs px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded';
-            btnRG.textContent = 'Río Grande';
-            btnRG.onclick = () => { showContactInfo('riogrande'); waitingForCity = false; showChatInput(); };
-            const btnUsh = document.createElement('button');
-            btnUsh.className = 'text-xs px-3 py-1 bg-green-100 hover:bg-green-200 text-green-800 rounded';
-            btnUsh.textContent = 'Ushuaia';
-            btnUsh.onclick = () => { showContactInfo('ushuaia'); waitingForCity = false; showChatInput(); };
-            div.appendChild(btnRG); div.appendChild(btnUsh);
-            chatContainer.appendChild(div);
-            scrollToBottom();
-            return;
-        }
+        // NO interceptar consultas de precio - dejar que Ollama las maneje con contexto
+        // El system prompt ya tiene instrucciones para manejar precios
         
         // Detectar si el usuario está respondiendo con una ciudad
         if (waitingForCity && (question.toLowerCase().includes('río grande') || question.toLowerCase().includes('rio grande') || question.toLowerCase().includes('rg'))) {
@@ -363,14 +344,27 @@ PROHIBIDO ABSOLUTAMENTE:
 ❌ NO recomiendes actividades (ejercicio, etc.)
 ❌ SOLO productos PEISA del catálogo arriba
 
+MANEJO DE CONSULTAS DE PRECIO:
+Si preguntan por precio/costo:
+1. IDENTIFICA el producto del contexto (ej: si acaban de hablar de Prima Tec Smart, ese es el producto)
+2. CONFIRMA el producto: "Entiendo que te interesa [PRODUCTO]"
+3. Responde: "No puedo darte precios exactos, pero para consultar por [PRODUCTO], ¿estás en Río Grande o Ushuaia?"
+
+Ejemplo:
+Usuario: "Cuanto está? Me interesa"
+Contexto: Productos ya recomendados: Prima Tec Smart
+✅ Soldy: "Entiendo que te interesa la Prima Tec Smart. No puedo darte precios exactos, pero para consultar por esta caldera, ¿estás en Río Grande o Ushuaia?"
+❌ Soldy: "¿A qué te referís?" (IGNORA el contexto)
+
 IMPORTANTE:
 ✓ SIEMPRE menciona AL MENOS 1 producto por nombre
 ✓ USA solo productos del catálogo arriba
 ✓ ADAPTA la recomendación a su necesidad
 ✓ Branding: PEISA = marca, SOLDASUR = empresa
 ✓ Responde en TEXTO PLANO, sin HTML, sin markdown, sin código
+✓ Si preguntan precio, USA el contexto para saber de qué producto hablan
 ✗ NO des respuestas empáticas sin productos
-✗ NO menciones precios (si preguntan: "Para precios, ¿estás en Río Grande o Ushuaia?")
+✗ NO preguntes "¿a qué te referís?" si hay contexto claro
 ✗ NO hables de cosas fuera del catálogo
 ✗ NO uses HTML (target, class, etc.) - solo texto natural`;
 
@@ -616,10 +610,22 @@ function detectMentionedProducts(message) {
     const mentioned = [];
     const messageLower = message.toLowerCase();
     
-    for (const product of catalogToUse) {
+    // Ordenar productos por longitud de nombre (más largos primero)
+    // Esto evita que "Broen" se detecte cuando en realidad es "Radiador Eléctrico Broen E"
+    const sortedProducts = [...catalogToUse].sort((a, b) => b.model.length - a.model.length);
+    
+    for (const product of sortedProducts) {
         const modelLower = product.model.toLowerCase();
         if (messageLower.includes(modelLower)) {
-            mentioned.push(product);
+            // Verificar que no sea un subproducto ya detectado
+            const isSubstring = mentioned.some(m => 
+                m.model.toLowerCase().includes(modelLower) || 
+                modelLower.includes(m.model.toLowerCase())
+            );
+            
+            if (!isSubstring) {
+                mentioned.push(product);
+            }
         }
     }
     
@@ -692,6 +698,64 @@ function enrichMessageWithLinks(message) {
     }
     
     return enrichedMessage;
+}
+
+/* Renderizar tarjetas de productos recomendados */
+function renderProducts(products) {
+    if (!products || products.length === 0) return;
+    
+    const chatContainer = document.getElementById('chat-container');
+    
+    products.forEach(product => {
+        const productCard = document.createElement('div');
+        productCard.className = 'product-card fade-in';
+        productCard.style.cssText = `
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 8px 0;
+            cursor: pointer;
+            transition: all 0.2s;
+        `;
+        
+        productCard.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="flex: 1;">
+                    <div style="font-weight: 600; color: #1e40af; margin-bottom: 6px;">
+                        ${product.model}
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <span style="font-size: 11px; background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px;">
+                            ${product.family || product.category || 'Producto'}
+                        </span>
+                    </div>
+                </div>
+                <a href="${product.url}" target="_blank" style="color: #2563eb; text-decoration: none; font-size: 20px; margin-left: 12px;">
+                    ↗
+                </a>
+            </div>
+        `;
+        
+        // Hover effect
+        productCard.onmouseenter = () => {
+            productCard.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
+            productCard.style.borderColor = '#2563eb';
+        };
+        productCard.onmouseleave = () => {
+            productCard.style.boxShadow = 'none';
+            productCard.style.borderColor = '#e5e7eb';
+        };
+        
+        // Click para abrir enlace
+        productCard.onclick = () => {
+            window.open(product.url, '_blank');
+        };
+        
+        chatContainer.appendChild(productCard);
+    });
+    
+    scrollToBottom();
 }
 
 /* Indicadores de carga */
