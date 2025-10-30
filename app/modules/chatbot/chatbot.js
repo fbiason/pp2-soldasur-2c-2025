@@ -149,6 +149,13 @@ async function handleChatInput() {
         appendMessage('user', question);
         input.value = '';
         
+        // Interceptar consultas de refrigeración (fuera del catálogo)
+        if (isCoolingQuestion(question)) {
+            appendMessage('system', 'Disculpá, no vendemos equipos de refrigeración o aire acondicionado. Nos especializamos en calefacción y agua caliente. ¿Te puedo ayudar con algo de eso?');
+            showChatInput();
+            return;
+        }
+        
         // Interceptar consultas de precio/costo y derivar a ventas
         if (isPriceQuestion(question)) {
             waitingForCity = true;
@@ -190,9 +197,9 @@ async function handleChatInput() {
             const response = await callOllama(question);
             hideLoadingIndicator();
             
-            // Enriquecer el mensaje con enlaces a productos mencionados
-            const enrichedMessage = enrichMessageWithLinks(response.message);
-            appendMessage('system', enrichedMessage);
+            // Limpiar y mostrar mensaje humanizado
+            const cleanMessage = cleanHtmlFromMessage(response.message);
+            appendMessage('system', cleanMessage);
             
             // Detectar si la respuesta pregunta por la ciudad
             if (response.message.toLowerCase().includes('río grande o ushuaia') || 
@@ -217,6 +224,57 @@ async function handleChatInput() {
     }
 }
 
+/* Filtrar productos relevantes según la consulta */
+function filterRelevantProducts(userMessage, catalog) {
+    const msg = userMessage.toLowerCase();
+    let relevantProducts = [];
+    
+    // Detectar tipo de necesidad
+    const needsHeating = msg.includes('frío') || msg.includes('frio') || msg.includes('calefacción') || msg.includes('calefaccion') || msg.includes('calentar');
+    const needsHotWater = msg.includes('agua caliente') || msg.includes('ducha') || msg.includes('baño');
+    const needsRadiator = msg.includes('radiador') || msg.includes('ambiente') || msg.includes('habitación') || msg.includes('habitacion');
+    const needsBoiler = msg.includes('caldera') || msg.includes('casa') || msg.includes('toda');
+    const needsElectric = msg.includes('eléctrico') || msg.includes('electrico') || msg.includes('enchufe');
+    
+    // Filtrar por familia/categoría relevante
+    if (needsRadiator || (needsHeating && !needsBoiler)) {
+        // Priorizar radiadores
+        relevantProducts = catalog.filter(p => 
+            p.family === 'Radiadores' || 
+            p.model.toLowerCase().includes('radiador')
+        );
+    } else if (needsBoiler || needsHotWater) {
+        // Priorizar calderas
+        relevantProducts = catalog.filter(p => 
+            p.family === 'Calderas' || 
+            p.model.toLowerCase().includes('caldera') ||
+            p.model.toLowerCase().includes('prima') ||
+            p.model.toLowerCase().includes('diva')
+        );
+    } else if (needsElectric) {
+        // Priorizar productos eléctricos
+        relevantProducts = catalog.filter(p => 
+            p.model.toLowerCase().includes('eléctrico') ||
+            p.model.toLowerCase().includes('electrico') ||
+            p.model.toLowerCase().includes('broen e')
+        );
+    } else {
+        // Caso general: productos más populares
+        const popularModels = ['Prima Tec Smart', 'Radiador Eléctrico Broen E', 'Diva Tecno', 'Broen', 'Caldera Diva'];
+        relevantProducts = catalog.filter(p => 
+            popularModels.some(pm => p.model.includes(pm))
+        );
+    }
+    
+    // Si no hay productos relevantes, tomar los primeros 5 del catálogo
+    if (relevantProducts.length === 0) {
+        relevantProducts = catalog.slice(0, 5);
+    }
+    
+    // Limitar a 5 productos para no saturar el contexto
+    return relevantProducts.slice(0, 5);
+}
+
 /* Llamar a la API de Ollama */
 async function callOllama(userMessage) {
     // Usar el catálogo JSON actualizado (con descripciones completas, ventajas y características)
@@ -228,61 +286,97 @@ async function callOllama(userMessage) {
         return 'Disculpá, estoy teniendo problemas para acceder al catálogo. Por favor, recargá la página.';
     }
     
-    // Crear versión simplificada del catálogo para el prompt (solo info clave + URL)
-    const simplifiedCatalog = catalogToUse.map(p => ({
+    // FILTRAR productos relevantes según la consulta (en lugar de pasar todo el catálogo)
+    const relevantProducts = filterRelevantProducts(userMessage, catalogToUse);
+    console.log(`🎯 Productos relevantes para "${userMessage}": ${relevantProducts.map(p => p.model).join(', ')}`);
+    
+    // Crear versión simplificada de los productos RELEVANTES
+    const simplifiedCatalog = relevantProducts.map(p => ({
         model: p.model,
         family: p.family,
         category: p.category,
-        description: p.description?.substring(0, 150) || '', // Limitar descripción
-        advantages: p.advantages?.slice(0, 2) || [], // Solo primeras 2 ventajas
-        url: p.url // IMPORTANTE: incluir URL
+        description: p.description?.substring(0, 200) || '', // Descripción completa
+        advantages: p.advantages?.slice(0, 3) || [], // Primeras 3 ventajas
+        url: p.url
     }));
     
-    // Crear el contexto del sistema con información de productos
-    let systemPrompt = `Eres Soldy, asesor de ventas experto de SOLDASUR (vendemos productos marca PEISA). Tu misión es VENDER recomendando LA MEJOR SOLUCIÓN del catálogo según la necesidad del cliente.
+    // Crear el contexto del sistema con información de productos RELEVANTES
+    let systemPrompt = `Eres Soldy, VENDEDOR EXPERTO de SOLDASUR (productos marca PEISA). Tu ÚNICA misión es VENDER productos del catálogo recomendando LA SOLUCIÓN PERFECTA para cada cliente.
 
-CATÁLOGO COMPLETO (${catalogToUse.length} productos con descripciones, ventajas y características):
+📦 PRODUCTOS PEISA DISPONIBLES PARA ESTA CONSULTA (${relevantProducts.length} productos):
 ${JSON.stringify(simplifiedCatalog, null, 2)}
 
-REGLAS DE ORO:
-1. ANALIZA la necesidad del cliente (frío, calefacción, agua caliente, espacio, etc.)
-2. RECOMIENDA el producto MÁS ADECUADO del catálogo por nombre completo
-3. MENCIONA 1 producto por defecto; hasta 3 SOLO si piden "opciones", "alternativas" o "varios"
-4. EXPLICA por qué ese producto es ideal para su necesidad específica
-5. USA información real del catálogo (descripción, ventajas)
-6. Respuestas: 2-3 oraciones (30-40 palabras)
-7. Español argentino (vos/podés)
-8. NUNCA precios - si preguntan: "Para precios, ¿estás en Río Grande o Ushuaia?"
+🎯 TU TRABAJO:
+Cada respuesta DEBE incluir AL MENOS 1 PRODUCTO ESPECÍFICO del catálogo arriba.
+NUNCA respondas sin recomendar un producto.
 
-FORMATO DE RESPUESTA:
-"[Comprensión de necesidad]. Te recomiendo [Producto] – [por qué es ideal para su caso]."
+REGLAS OBLIGATORIAS:
+1. LEE el contexto de la conversación previa (si existe) para mantener coherencia
+2. IDENTIFICA la necesidad actual del usuario (frío/calefacción/agua caliente/espacio)
+3. RECOMIENDA INMEDIATAMENTE un producto ESPECÍFICO del catálogo por su NOMBRE COMPLETO
+4. EXPLICA por qué ESE producto resuelve SU necesidad específica
+5. USA datos REALES del catálogo (descripción, ventajas)
+6. Si el usuario ya mencionó su situación (casa grande, familia, etc.), REFERENCIA eso en tu respuesta
+7. Respuestas: 2-3 oraciones (40-50 palabras)
+8. Español argentino: vos/podés/tenés
 
-EJEMPLOS POR NECESIDAD:
+CUÁNTOS PRODUCTOS:
+- Por defecto: 1 producto (el más adecuado)
+- Si piden "opciones/alternativas/varios": 2-3 productos
+
+FORMATO OBLIGATORIO:
+"Te recomiendo [NOMBRE PRODUCTO] porque [razón específica para su caso]. [Beneficio clave]."
+
+EJEMPLOS CORRECTOS:
 
 Usuario: "Tengo frío"
-Soldy: "Para calentarte rápido, te recomiendo el Radiador Broen E – control digital y calor inmediato para tu ambiente."
+✅ Soldy: "Te recomiendo el Radiador Eléctrico Broen E porque da calor inmediato con control digital. Lo enchufás y en minutos tenés tu ambiente caliente."
 
-Usuario: "Necesito calefacción para toda la casa"
-Soldy: "Para toda la casa, la Prima Tec Smart es ideal – calefacción y agua caliente con 90% eficiencia y control wifi."
+Usuario: "Necesito calefacción"
+✅ Soldy: "Te recomiendo la Prima Tec Smart porque es caldera doble servicio con 90% eficiencia y control wifi. Calefaccionás toda tu casa y tenés agua caliente."
 
-Usuario: "¿Qué opciones tengo para calefacción?" (PIDE OPCIONES)
-Soldy: "Tenés 3 opciones: Prima Tec Smart (caldera wifi), Radiador Broen E (control digital) o Caldera Diva 24 (doble servicio)."
+Usuario: "¿Qué opciones tengo?"
+✅ Soldy: "Tenés 3 opciones: Prima Tec Smart (caldera wifi), Radiador Broen E (eléctrico), o Caldera Diva 24 (doble servicio económica)."
 
-Usuario: "Necesito agua caliente"
-Soldy: "Para agua caliente, el Termotanque Peisa es perfecto – recuperación rápida y bajo consumo."
+EJEMPLO CON CONTEXTO (MUY IMPORTANTE):
 
-Usuario: "Departamento chico"
-Soldy: "Para espacios chicos, el Radiador Broen E es ideal – compacto, eficiente y control preciso."
+Usuario 1: "Tengo frío"
+Soldy: "Te recomiendo el Radiador Eléctrico Broen E porque da calor inmediato con control digital."
+
+Usuario 2: "Vivo en una casa grande con mi familia"
+✅ Soldy: "Para tu casa grande con familia, te recomiendo la Prima Tec Smart porque es caldera doble servicio que calefacciona toda la casa y da agua caliente para todos."
+❌ Soldy: "Te recomiendo el Radiador Broen E..." (IGNORA el contexto de casa grande)
+
+EJEMPLOS INCORRECTOS (NUNCA HAGAS ESTO):
+
+Usuario: "Tengo frío"
+❌ "¡Lo siento mucho! Compartir tus sentimientos puede ayudar..."
+❌ "Entiendo que tengas frío. ¿Te puedo ayudar?"
+❌ "Para el frío, hay varias opciones de calefacción."
+❌ "Poné un sudadero o una camiseta ligera sobre tu ropa." (ESTO ES ROPA, NO VENDEMOS ROPA)
+
+REGLA DE ORO: Si NO mencionás un producto específico por nombre DEL CATÁLOGO ARRIBA, tu respuesta está MAL.
+
+PROHIBIDO ABSOLUTAMENTE:
+❌ NO recomiendes ropa (sudaderos, camisetas, etc.)
+❌ NO recomiendes alimentos o bebidas (té, café, etc.)
+❌ NO recomiendes actividades (ejercicio, etc.)
+❌ SOLO productos PEISA del catálogo arriba
 
 IMPORTANTE:
-- Branding: PEISA = marca, SOLDASUR = empresa
-- SIEMPRE usa productos REALES del catálogo
-- ADAPTA la recomendación a la necesidad específica
-- NO inventes productos ni características`;
+✓ SIEMPRE menciona AL MENOS 1 producto por nombre
+✓ USA solo productos del catálogo arriba
+✓ ADAPTA la recomendación a su necesidad
+✓ Branding: PEISA = marca, SOLDASUR = empresa
+✓ Responde en TEXTO PLANO, sin HTML, sin markdown, sin código
+✗ NO des respuestas empáticas sin productos
+✗ NO menciones precios (si preguntan: "Para precios, ¿estás en Río Grande o Ushuaia?")
+✗ NO hables de cosas fuera del catálogo
+✗ NO uses HTML (target, class, etc.) - solo texto natural`;
 
     // Agregar contexto de conversación previa si existe
     if (conversationContext) {
-        systemPrompt += `\n\nCONTEXTO DE LA CONVERSACIÓN:\n${conversationContext}`;
+        systemPrompt += `\n\nCONTEXTO IMPORTANTE DE LA CONVERSACIÓN PREVIA:\n${conversationContext}\n\nUSA este contexto para dar respuestas coherentes y personalizadas. Si el usuario ya mencionó su situación (ej: casa grande, familia), adaptá tu recomendación a eso.`;
     }
 
     // Agregar mensaje del usuario al historial
@@ -314,10 +408,11 @@ IMPORTANTE:
             messages: messages,
             stream: false,
             options: {
-                temperature: 0.7,
-                num_predict: 150,  // Suficiente para respuestas completas con 1-2 productos
-                top_p: 0.9,
-                top_k: 40
+                temperature: 0.3,  // Baja temperatura para más determinismo
+                num_predict: 150,  // Respuestas concisas
+                top_p: 0.7,  // Más enfocado
+                top_k: 20,  // Menos opciones, más preciso
+                repeat_penalty: 1.3  // Evitar repeticiones
             }
         })
     });
@@ -335,6 +430,9 @@ IMPORTANTE:
         content: assistantMessage
     });
     
+    // Actualizar contexto después de cada interacción
+    updateConversationContext();
+    
     // Detectar productos mencionados en la respuesta
     const mentionedProducts = detectMentionedProducts(assistantMessage);
     
@@ -344,24 +442,29 @@ IMPORTANTE:
     };
 }
 
-/* Forzar brevedad y foco producto-only en el mensaje */
+/* Asegurar brevedad razonable en el mensaje */
 function briefenResponse(text) {
     if (!text) return '';
     
     // Unificar espacios y líneas
     let t = text.replace(/\s+/g, ' ').trim();
     
-    // Permitir hasta 50 palabras para respuestas con productos
+    // Permitir hasta 80 palabras para respuestas completas con productos
     const words = t.split(' ');
-    const maxWords = 50;
+    const maxWords = 80;
     
     if (words.length > maxWords) {
-        // Buscar el segundo o tercer punto para permitir 2-3 oraciones
+        // Buscar hasta el 4to punto para permitir respuestas completas
         const sentences = t.split(/[.!?]+/).filter(s => s.trim().length > 0);
         
         if (sentences.length >= 2) {
-            // Tomar las primeras 2-3 oraciones
-            t = sentences.slice(0, 3).join('. ') + '.';
+            // Tomar las primeras 3-4 oraciones
+            t = sentences.slice(0, 4).join('. ') + '.';
+            // Si aún es muy largo, cortar en maxWords
+            if (t.split(' ').length > maxWords) {
+                t = t.split(' ').slice(0, maxWords).join(' ');
+                if (!/[\.!?]$/.test(t)) t += '.';
+            }
         } else {
             // Si no hay puntos, cortar en maxWords
             t = words.slice(0, maxWords).join(' ');
@@ -400,6 +503,21 @@ function isPriceQuestion(text) {
     return keywords.some(k => t.includes(k)) || currencyRegex.test(text);
 }
 
+/* Detectar consultas de refrigeración (fuera del catálogo) */
+function isCoolingQuestion(text) {
+    if (!text) return false;
+    const t = text.toLowerCase();
+    const coolingKeywords = [
+        'aire acondicionado', 'aire', 'acondicionado', 'split', 'refrigeración', 'refrigeracion',
+        'enfriar', 'refrescar', 'ventilador', 'climatizador', 'fresco', 'frío verano'
+    ];
+    // Excluir falsos positivos
+    if (t.includes('agua caliente') || t.includes('calefacción') || t.includes('calefaccion')) {
+        return false;
+    }
+    return coolingKeywords.some(k => t.includes(k));
+}
+
 /* Consultar por un producto sugerido (se llama desde productCatalog.js) */
 function consultProduct(product) {
     try {
@@ -426,28 +544,39 @@ function consultProduct(product) {
     }
 }
 
-/* Actualizar contexto de conversación */
+/* Actualizar contexto de conversación con más detalle */
 function updateConversationContext() {
-    // Usar el catálogo JSON actualizado
     const catalogToUse = peisaProductsFromJSON;
     
-    // Crear un resumen de los temas tratados en la conversación
-    const topics = [];
+    // Extraer información clave de la conversación
+    const userNeeds = [];
+    const userSituation = [];
     const mentionedProducts = new Set();
+    const topics = [];
     
     conversationHistory.forEach(msg => {
         if (msg.role === 'user') {
-            // Extraer temas clave de las preguntas del usuario
             const content = msg.content.toLowerCase();
+            
+            // Necesidades del usuario
+            if (content.includes('frío') || content.includes('frio')) userNeeds.push('tiene frío');
+            if (content.includes('calefacción') || content.includes('calefaccion')) userNeeds.push('necesita calefacción');
+            if (content.includes('agua caliente')) userNeeds.push('necesita agua caliente');
+            
+            // Situación del usuario
+            if (content.includes('casa grande') || content.includes('casa')) userSituation.push('casa grande');
+            if (content.includes('familia')) userSituation.push('vive con familia');
+            if (content.includes('departamento') || content.includes('depto')) userSituation.push('departamento');
+            if (content.includes('chico') || content.includes('pequeño')) userSituation.push('espacio pequeño');
+            if (content.includes('oficina')) userSituation.push('oficina');
+            
+            // Temas específicos
             if (content.includes('caldera')) topics.push('calderas');
             if (content.includes('radiador')) topics.push('radiadores');
-            if (content.includes('termotanque')) topics.push('termotanques');
-            if (content.includes('calefón')) topics.push('calefones');
-            if (content.includes('toallero')) topics.push('toalleros');
+            if (content.includes('eléctrico') || content.includes('electrico')) topics.push('productos eléctricos');
             if (content.includes('m²') || content.includes('metros')) topics.push('dimensiones');
-            if (content.includes('precio') || content.includes('costo')) topics.push('precios');
         } else if (msg.role === 'assistant') {
-            // Extraer productos mencionados por el asistente
+            // Productos ya recomendados
             catalogToUse.forEach(product => {
                 if (msg.content.toLowerCase().includes(product.model.toLowerCase())) {
                     mentionedProducts.add(product.model);
@@ -456,16 +585,27 @@ function updateConversationContext() {
         }
     });
     
-    // Construir resumen del contexto
+    // Construir resumen contextual rico
     let contextSummary = '';
-    if (topics.length > 0) {
-        contextSummary += `Temas consultados: ${[...new Set(topics)].join(', ')}. `;
+    
+    if (userNeeds.length > 0) {
+        contextSummary += `Usuario: ${[...new Set(userNeeds)].join(', ')}. `;
     }
+    
+    if (userSituation.length > 0) {
+        contextSummary += `Situación: ${[...new Set(userSituation)].join(', ')}. `;
+    }
+    
     if (mentionedProducts.size > 0) {
-        contextSummary += `Productos ya recomendados: ${[...mentionedProducts].join(', ')}.`;
+        contextSummary += `Productos ya recomendados: ${[...mentionedProducts].join(', ')}. `;
+    }
+    
+    if (topics.length > 0) {
+        contextSummary += `Temas: ${[...new Set(topics)].join(', ')}.`;
     }
     
     conversationContext = contextSummary;
+    console.log('🧠 Contexto actualizado:', contextSummary);
 }
 
 /* Detectar productos mencionados en la respuesta */
@@ -501,6 +641,29 @@ function detectMentionedProducts(message) {
     return mentioned.slice(0, 5); // Limitar a 5 productos
 }
 
+/* Limpiar HTML crudo del mensaje para humanizarlo */
+function cleanHtmlFromMessage(message) {
+    if (!message) return '';
+    
+    // Eliminar tags HTML crudos que puedan aparecer en el texto
+    let cleaned = message;
+    
+    // Eliminar atributos HTML visibles (target="_blank", class="...", etc.)
+    cleaned = cleaned.replace(/\s*(target|class|title|style)\s*=\s*["'][^"']*["']/gi, '');
+    
+    // Eliminar tags <a> pero mantener el texto
+    cleaned = cleaned.replace(/<a[^>]*>/gi, '');
+    cleaned = cleaned.replace(/<\/a>/gi, '');
+    
+    // Eliminar otros tags HTML comunes
+    cleaned = cleaned.replace(/<[^>]+>/g, '');
+    
+    // Limpiar espacios múltiples
+    cleaned = cleaned.replace(/\s+/g, ' ').trim();
+    
+    return cleaned;
+}
+
 /* Enriquecer mensaje con enlaces a productos mencionados */
 function enrichMessageWithLinks(message) {
     if (!peisaProductsFromJSON || peisaProductsFromJSON.length === 0) {
@@ -508,23 +671,21 @@ function enrichMessageWithLinks(message) {
     }
     
     let enrichedMessage = message;
-    const replacedProducts = new Set(); // Evitar reemplazos duplicados
+    const replacedProducts = new Set();
     
-    // Ordenar productos por longitud de nombre (más largos primero) para evitar reemplazos parciales
+    // Ordenar productos por longitud de nombre (más largos primero)
     const sortedProducts = [...peisaProductsFromJSON].sort((a, b) => b.model.length - a.model.length);
     
     // Buscar productos mencionados y reemplazar con enlaces
     for (const product of sortedProducts) {
-        // Escapar caracteres especiales en el nombre del producto para regex
+        // Escapar caracteres especiales para regex
         const escapedModel = product.model.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        
-        // Buscar el nombre del producto en el mensaje (case insensitive, palabra completa)
         const regex = new RegExp(`\\b(${escapedModel})\\b`, 'gi');
         
         if (regex.test(enrichedMessage) && !replacedProducts.has(product.model.toLowerCase())) {
-            // Reemplazar con enlace HTML
+            // Crear enlace limpio sin atributos extra que puedan mostrarse
             enrichedMessage = enrichedMessage.replace(regex, 
-                `<a href="${product.url}" target="_blank" class="product-link" title="Ver ${product.model} en PEISA">$1</a>`
+                `<a href="${product.url}" target="_blank" style="color: #2563eb; text-decoration: underline;">$1</a>`
             );
             replacedProducts.add(product.model.toLowerCase());
         }

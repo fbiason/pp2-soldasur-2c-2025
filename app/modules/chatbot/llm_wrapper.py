@@ -16,33 +16,57 @@ class OllamaLLM:
         except Exception:
             # Fallback simple al módulo si falla la creación del cliente
             self.client = None
-        self.system_prompt = """Eres Soldy, asesor de ventas de SOLDASUR (los productos que vendemos son marca PEISA). Tu objetivo es ayudar con calidez y profesionalismo.
+        self.system_prompt = """Eres Soldy, VENDEDOR EXPERTO de SOLDASUR (productos marca PEISA). Tu ÚNICA misión es VENDER productos del catálogo recomendando LA SOLUCIÓN PERFECTA para cada cliente.
 
-REGLAS:
-- Respuestas MUY BREVES: 1 sola oración (15–20 palabras)
-- Solo sobre PRODUCTOS: Si hay contexto de productos, menciona únicamente esos modelos (no inventes otros)
-- DIRECTO AL PUNTO: Sin rodeos ni explicaciones largas
-- 1 recomendación (o 2 como máximo) con modelo y potencia
-- Español argentino: vos/podés, tono cercano
+🎯 TU TRABAJO:
+Cada respuesta DEBE incluir AL MENOS 1 PRODUCTO ESPECÍFICO del catálogo.
+NUNCA respondas sin recomendar un producto por nombre.
 
-- Branding correcto: PEISA es solo la marca de los productos; la empresa, sucursales y contactos son de SOLDASUR. Nunca digas "visita a PEISA", "en PEISA" o similares; usa siempre "Soldasur" para la empresa.
+REGLAS OBLIGATORIAS:
+1. IDENTIFICA la necesidad (frío/calefacción/agua caliente/espacio)
+2. RECOMIENDA INMEDIATAMENTE un producto ESPECÍFICO del catálogo por su NOMBRE COMPLETO
+3. EXPLICA por qué ESE producto resuelve SU necesidad específica
+4. USA datos REALES del catálogo (descripción, ventajas, características)
+5. Respuestas: 2-3 oraciones (40-50 palabras)
+6. Español argentino: vos/podés/tenés
 
-- NUNCA MENCIONES PRECIOS, COSTOS O MONTOS
-Si preguntan por precio/compra/presupuesto/dónde consigo, responde:
-"Para precios y compras, ¿estás en Río Grande o Ushuaia?"
+CUÁNTOS PRODUCTOS:
+- Por defecto: 1 producto (el más adecuado)
+- Si piden "opciones/alternativas/varios": 2-3 productos
 
-FORMATO DE RESPUESTA:
-- "<Modelo> – <potencia> W – <motivo breve>" (1 o 2 ítems como máximo, en una sola oración si es posible)
+FORMATO OBLIGATORIO:
+"Te recomiendo [NOMBRE PRODUCTO] porque [razón específica para su caso]. [Beneficio clave]."
 
-EJEMPLOS:
-- MAL: "Para calentar tu hogar eficientemente... te recomiendo considerar un sistema de calefacción completo..."
-- BIEN: "Caldera Diva 24 – 24000 W – alcanza tu carga; o Diva 30 si querés más margen."
+EJEMPLOS CORRECTOS:
 
-✗ No inventes datos técnicos
-✗ No recomiendes productos fuera del catálogo/contexto
-✗ No des explicaciones largas o técnicas
-✗ No repitas información
-    - TERMINA SIEMPRE CON PUNTO FINAL (.)"""
+Usuario: "Tengo frío"
+✅ Soldy: "Te recomiendo el Radiador Eléctrico Broen E porque da calor inmediato con control digital. Lo enchufás y en minutos tenés tu ambiente caliente."
+
+Usuario: "Necesito calefacción"
+✅ Soldy: "Te recomiendo la Prima Tec Smart porque es caldera doble servicio con 90% eficiencia y control wifi. Calefaccionás toda tu casa y tenés agua caliente."
+
+Usuario: "¿Qué opciones tengo?"
+✅ Soldy: "Tenés 3 opciones: Prima Tec Smart (caldera wifi), Radiador Broen E (eléctrico), o Caldera Diva 24 (doble servicio económica)."
+
+EJEMPLOS INCORRECTOS (NUNCA HAGAS ESTO):
+
+Usuario: "Tengo frío"
+❌ "¡Lo siento mucho! Compartir tus sentimientos puede ayudar..."
+❌ "Entiendo que tengas frío. ¿Te puedo ayudar?"
+❌ "Para el frío, hay varias opciones de calefacción."
+
+REGLA DE ORO: Si NO mencionás un producto específico por nombre, tu respuesta está MAL.
+
+IMPORTANTE:
+✓ SIEMPRE menciona AL MENOS 1 producto por nombre
+✓ USA solo productos del catálogo/contexto que recibís
+✓ ADAPTA la recomendación a su necesidad
+✓ Branding: PEISA = marca de productos, SOLDASUR = empresa/sucursales
+✓ Responde en TEXTO PLANO, sin HTML, sin markdown, sin código
+✗ NO des respuestas empáticas sin productos
+✗ NO menciones precios (si preguntan: "Para precios, ¿estás en Río Grande o Ushuaia?")
+✗ NO hables de cosas fuera del catálogo
+✗ NO uses HTML (target, class, etc.) - solo texto natural y humanizado"""
 
         # CTA opcional desde variable de entorno
         self.contact_cta = os.getenv('SOLDASUR_CONTACT_CTA')
@@ -53,7 +77,7 @@ EJEMPLOS:
                  question: str, 
                  context: Optional[List[Dict]] = None,
                  temperature: float = 0.2,
-                 max_tokens: int = 80) -> str:
+                 max_tokens: int = 150) -> str:
         """
         Genera una respuesta usando Ollama Mistral
         
@@ -109,10 +133,10 @@ EJEMPLOS:
             print(f"❌ Error en Ollama: {e}")
             return self._fallback_response(question, context)
     
-    def _truncate_to_brief(self, text: str, max_words: int = 30) -> str:
+    def _truncate_to_brief(self, text: str, max_words: int = 70) -> str:
         """
-        Trunca la respuesta para garantizar brevedad (2-3 frases, 20-30 palabras)
-        Corta en la primera oración completa o en max_words
+        Trunca la respuesta para mantener brevedad (2-4 oraciones, 40-70 palabras)
+        Permite respuestas completas pero evita verbosidad
         """
         # Eliminar saltos de línea múltiples
         text = ' '.join(text.split())
@@ -122,17 +146,26 @@ EJEMPLOS:
         if len(words) <= max_words:
             return self._ensure_final_period(text)
         
-        # Buscar primer punto, signo de pregunta o exclamación
-        for i, char in enumerate(text):
+        # Buscar hasta el 3er o 4to punto para permitir respuestas completas
+        sentences = []
+        current = []
+        for char in text:
+            current.append(char)
             if char in ['.', '?', '!']:
-                sentence = text[:i+1].strip()
-                # Verificar que la oración tenga al menos 10 palabras
-                if len(sentence.split()) >= 10:
-                    return self._ensure_final_period(sentence)
+                sentence = ''.join(current).strip()
+                if len(sentence.split()) >= 5:  # Oraciones de al menos 5 palabras
+                    sentences.append(sentence)
+                    if len(sentences) >= 3:  # Hasta 3-4 oraciones
+                        break
+                current = []
         
-        # Si no hay puntuación, truncar a max_words
+        if sentences:
+            result = ' '.join(sentences)
+            if len(result.split()) <= max_words:
+                return self._ensure_final_period(result)
+        
+        # Si no hay puntuación suficiente, truncar a max_words
         truncated = ' '.join(words[:max_words])
-        # Agregar punto si no termina en puntuación
         return self._ensure_final_period(truncated)
 
     def _ensure_final_period(self, text: str) -> str:
@@ -206,24 +239,33 @@ EJEMPLOS:
         
         # Agregar contexto de productos si existe
         if context and len(context) > 0:
-            prompt_parts.append("📦 CATÁLOGO DE PRODUCTOS RELEVANTES:\n")
-            for i, product in enumerate(context[:3], 1):  # Máximo 3 productos
-                prompt_parts.append(f"\n{i}. **{product.get('model', 'N/A')}** ({product.get('family', 'N/A')})")
-                prompt_parts.append(f"   - Tipo: {product.get('type', 'N/A')}")
-                prompt_parts.append(f"   - Potencia: {product.get('power_w', 0)} W")
-                prompt_parts.append(f"   - Descripción: {product.get('description', 'N/A')}")
+            prompt_parts.append("📦 PRODUCTOS DEL CATÁLOGO DISPONIBLES PARA RECOMENDAR:\n")
+            for i, product in enumerate(context[:5], 1):  # Hasta 5 productos para más opciones
+                prompt_parts.append(f"\n{i}. {product.get('model', 'N/A')}")
+                prompt_parts.append(f"   Familia: {product.get('family', 'N/A')}")
+                prompt_parts.append(f"   Categoría: {product.get('category', 'N/A')}")
                 
-                if product.get('features'):
-                    prompt_parts.append(f"   - Características: {', '.join(product['features'])}")
+                # Descripción (limitada)
+                desc = product.get('description', '')
+                if desc:
+                    desc_short = desc[:200] + '...' if len(desc) > 200 else desc
+                    prompt_parts.append(f"   Descripción: {desc_short}")
                 
-                if product.get('applications'):
-                    prompt_parts.append(f"   - Aplicaciones: {', '.join(product['applications'])}")
+                # Ventajas (primeras 3)
+                advantages = product.get('advantages', [])
+                if advantages:
+                    adv_text = '; '.join(advantages[:3])
+                    prompt_parts.append(f"   Ventajas: {adv_text}")
                 
-                prompt_parts.append(f"   - Dimensiones: {product.get('dimentions', 'N/A')}")
+                # URL para que sepa que existe
+                if product.get('url'):
+                    prompt_parts.append(f"   URL: {product.get('url')}")
+        else:
+            prompt_parts.append("⚠️ NO HAY PRODUCTOS EN EL CONTEXTO - Responde de forma general y sugiere que el cliente especifique su necesidad.\n")
         
         # Agregar la pregunta
-        prompt_parts.append(f"\n\n❓ CONSULTA DEL CLIENTE:\n{question}")
-        prompt_parts.append("\n\n💬 RESPONDE SOLO CON 1 ORACIÓN (15–20 palabras) mencionando 1–2 modelos del contexto, con potencia y motivo breve. Nada más:")
+        prompt_parts.append(f"\n❓ CONSULTA DEL CLIENTE:\n{question}")
+        prompt_parts.append("\n💬 TU RESPUESTA (2-4 oraciones, 40-60 palabras, recomienda productos específicos del catálogo):")
         
         return "\n".join(prompt_parts)
     
