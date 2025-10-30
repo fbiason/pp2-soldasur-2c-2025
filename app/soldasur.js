@@ -306,6 +306,25 @@ function updateModeIndicator(mode, label) {
 function consultSucursal(city = null, showOnPage = true) {
     const sel = document.getElementById('city-select');
     const res = document.getElementById('sucursal-result');
+    
+    // Si showOnPage es true y no se pasó ciudad, abrir chat y preguntar
+    if (showOnPage && !city) {
+        // Abrir chat si está cerrado
+        if (!chatIsOpen) toggleChat();
+        // Preguntar en el chat por la ciudad
+        if (typeof appendMessage === 'function') {
+            const optionsHtml = `
+                <div class="sucursal-options" style="display:flex;gap:8px;margin-top:8px;">
+                    <button class="inline-block bg-blue-600 text-white px-3 py-1 rounded text-sm" onclick="consultSucursalFromChat('rio_grande')">Río Grande</button>
+                    <button class="inline-block bg-green-600 text-white px-3 py-1 rounded text-sm" onclick="consultSucursalFromChat('ushuaia')">Ushuaia</button>
+                </div>
+            `;
+            appendMessage('system', `¿Estás en Río Grande o Ushuaia?${optionsHtml}`);
+            scrollToBottom();
+        }
+        return;
+    }
+    
     // determine city: priority param -> selector -> default
     const selectedCity = city || (sel ? sel.value : null);
     // info map
@@ -314,13 +333,15 @@ function consultSucursal(city = null, showOnPage = true) {
             name: 'Sucursal Río Grande - Soldasur',
             address: 'Av. San Martín 1234, Río Grande, Tierra del Fuego',
             phone: '+54 2964 123456',
-            email: 'riogrande@soldasur.com'
+            email: 'riogrande@soldasur.com',
+            mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Av.+San+Martín+1234,+Río+Grande,+Tierra+del+Fuego'
         },
         ushuaia: {
             name: 'Sucursal Ushuaia - Soldasur',
             address: 'Calle 9 de Julio 210, Ushuaia, Tierra del Fuego',
             phone: '+54 2901 654321',
-            email: 'ushuaia@soldasur.com'
+            email: 'ushuaia@soldasur.com',
+            mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Calle+9+de+Julio+210,+Ushuaia,+Tierra+del+Fuego'
         }
     };
 
@@ -350,10 +371,10 @@ function consultSucursal(city = null, showOnPage = true) {
             const optionsHtml = `
                 <div class="sucursal-options" style="display:flex;gap:8px;margin-top:8px;">
                     <button class="inline-block bg-blue-600 text-white px-3 py-1 rounded text-sm" onclick="consultSucursalFromChat('rio_grande')">Río Grande</button>
-                    <button class="inline-block bg-blue-600 text-white px-3 py-1 rounded text-sm" onclick="consultSucursalFromChat('ushuaia')">Ushuaia</button>
+                    <button class="inline-block bg-green-600 text-white px-3 py-1 rounded text-sm" onclick="consultSucursalFromChat('ushuaia')">Ushuaia</button>
                 </div>
             `;
-            appendMessage('system', `Seleccioná la sucursal:${optionsHtml}`);
+            appendMessage('system', `¿Estás en Río Grande o Ushuaia?${optionsHtml}`);
         } else {
             // Añadir mensaje al chat con botones junto a la tarjeta de contacto
             const chatHtml = `
@@ -365,7 +386,7 @@ function consultSucursal(city = null, showOnPage = true) {
                     <div style="margin-top:8px; display:flex; gap:8px;">
                         <a href="tel:${c.phone.replace(/\s+/g,'')}" class="inline-block bg-blue-600 text-white px-3 py-1 rounded text-sm">Llamar</a>
                         <a href="mailto:${c.email}" class="inline-block bg-gray-200 text-gray-800 px-3 py-1 rounded text-sm">Email</a>
-                        <button onclick="scrollToSucursal('${selectedCity}')" class="inline-block bg-green-600 text-white px-3 py-1 rounded text-sm">Ver sucursal</button>
+                        <a href="${c.mapsUrl}" target="_blank" class="inline-block bg-green-600 text-white px-3 py-1 rounded text-sm">Ver sucursal</a>
                     </div>
                 </div>
             `;
@@ -397,10 +418,18 @@ function consultFromProduct(productModel) {
     if (!chatIsOpen) toggleChat();
     // Añadir mensaje de usuario indicando interés en el producto
     appendMessage('user', `Estoy interesado en: <strong>${productModel}</strong>`);
-    // Mostrar la sección de consulta si existe
-    const sel = document.getElementById('city-select');
-    // Iniciar flujo de consulta dentro del chat: mostrar opciones de sucursal
-    consultSucursal(null, false);
+    
+    // Preguntar SIEMPRE por la ciudad (no asumir valor del selector)
+    if (typeof appendMessage === 'function') {
+        const optionsHtml = `
+            <div class="sucursal-options" style="display:flex;gap:8px;margin-top:8px;">
+                <button class="inline-block bg-blue-600 text-white px-3 py-1 rounded text-sm" onclick="consultSucursalFromChat('rio_grande')">Río Grande</button>
+                <button class="inline-block bg-green-600 text-white px-3 py-1 rounded text-sm" onclick="consultSucursalFromChat('ushuaia')">Ushuaia</button>
+            </div>
+        `;
+        appendMessage('system', `¿Estás en Río Grande o Ushuaia?${optionsHtml}`);
+        scrollToBottom();
+    }
 }
 
 // Función llamada desde los botones de opciones dentro del chat

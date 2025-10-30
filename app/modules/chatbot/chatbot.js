@@ -689,13 +689,40 @@ function cleanHtmlFromMessage(message) {
     cleaned = cleaned.replace(/<a[^>]*>/gi, '');
     cleaned = cleaned.replace(/<\/a>/gi, '');
     
-    // Eliminar otros tags HTML comunes
-    cleaned = cleaned.replace(/<[^>]+>/g, '');
+    // Eliminar otros tags HTML comunes (excepto <strong> y <b>)
+    cleaned = cleaned.replace(/<(?!\/?(?:strong|b)\b)[^>]+>/g, '');
     
     // Limpiar espacios múltiples
     cleaned = cleaned.replace(/\s+/g, ' ').trim();
     
+    // Resaltar nombres de productos en negrita
+    if (peisaProductsFromJSON && peisaProductsFromJSON.length > 0) {
+        // Ordenar productos por longitud de nombre (más largos primero para evitar reemplazos parciales)
+        const sortedProducts = [...peisaProductsFromJSON].sort((a, b) => b.model.length - a.model.length);
+        const replacedProducts = new Set();
+        
+        for (const product of sortedProducts) {
+            if (!product.model || replacedProducts.has(product.model)) continue;
+            
+            // Crear regex que busque el nombre del producto (case insensitive)
+            // pero que no esté ya dentro de un tag <strong>
+            const regex = new RegExp(`(?<!<strong>)\\b(${escapeRegex(product.model)})\\b(?![^<]*<\\/strong>)`, 'gi');
+            
+            // Reemplazar solo si encuentra coincidencias
+            const newCleaned = cleaned.replace(regex, '<strong>$1</strong>');
+            if (newCleaned !== cleaned) {
+                cleaned = newCleaned;
+                replacedProducts.add(product.model);
+            }
+        }
+    }
+    
     return cleaned;
+}
+
+/* Escapar caracteres especiales de regex */
+function escapeRegex(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /* Enriquecer mensaje con enlaces a productos mencionados */
