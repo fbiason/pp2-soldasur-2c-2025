@@ -60,7 +60,7 @@ function calculateHeatingLoad() {
     contextData['Carga térmica'] = cargaTermica + ' W';
     updateContextPanel();
     
-    appendMessage('system', `🎉 ¡Cálculo completado!<br><br>📊 Resultados:<br>- Superficie: ${superficie}m²<br>- Zona: ${zona}<br>- Aislación: ${aislacion}<br>- Carga térmica: ${cargaTermica} W<br><br>💡 Productos recomendados:`);
+    appendMessage('system', `🎉 ¡Cálculo completado!<br><br>📊 Resultados:<br>- Superficie: ${superficie}m²<br>- Zona: ${zona}<br>- Aislación: ${aislacion}<br>- Carga térmica: ${cargaTermica} W<br><br>💡 Producto recomendado:`);
     
     setTimeout(() => {
         showRecommendedProducts(tipo);
@@ -118,10 +118,10 @@ function showRecommendedProducts(tipo) {
         );
     }
     
-    // Limitar a máximo 3 productos, mínimo 1
-    const finalProducts = recommendedProducts.slice(0, 3);
+    // RECOMENDAR SOLO 1 PRODUCTO (el más adecuado)
+    const finalProducts = recommendedProducts.slice(0, 1);
     
-    console.log('💡 Productos recomendados para', tipo, '(carga:', cargaTermica, 'W):', finalProducts.length);
+    console.log('💡 Producto recomendado para', tipo, '(carga:', cargaTermica, 'W):', finalProducts.length);
     
     if (finalProducts.length > 0) {
         renderProducts(finalProducts);

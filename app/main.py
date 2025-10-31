@@ -9,8 +9,8 @@ import math
 from math import ceil
 from bisect import bisect_left
 from app.models import RADIATOR_MODELS
-from query import query  # ajusta import según tu módulo
-from app.llm_wrapper import answer
+from query.query import search_filtered
+from app.modules.chatbot.llm_wrapper import answer
 from app.app import replace_variables, filter_radiators, perform_calculation, format_radiator_recommendations, exec_expression
 from app.app import init_knowledge_base, get_node_by_id  # modificar import
 
@@ -187,7 +187,7 @@ async def health_check():
 
 @app.get("/ask")
 def ask(question: str = Query(..., min_length=5)):
-    top_items = query.search_filtered(question, top_k=3)
+    top_items = search_filtered(question, top_k=3)
     respuesta = answer(question, top_items)
     return {"respuesta": respuesta, "productos": top_items}
 

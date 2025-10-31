@@ -65,11 +65,11 @@ def search_filtered(question: str, top_k: int = TOP_K_DEFAULT):
     D, I = _IDX.search(_embed(question, _MODEL), SEARCH_POOL_K)
 
     valid_idxs = [i for i in I[0] if i != -1]
-    rows = _fetch_rows(_CONN, [int(i)+1 for i in I[0]])
+    rows = _fetch_rows(_CONN, [int(i)+1 for i in I[0]])  # FAISS usa índices 0-based, SQLite rowid es 1-based
 
     resultados = []
     for idx, dist in zip(valid_idxs, D[0]):
-        rowid = int(idx) + 1
+        rowid = int(idx) + 1  # FAISS usa índices 0-based, SQLite rowid es 1-based
         if rowid not in rows:
             continue
         (

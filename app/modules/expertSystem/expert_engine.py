@@ -1,10 +1,3 @@
-"""
-expert_engine.py - Motor del Sistema Experto con Enriquecimiento RAG
-
-Este módulo contiene el motor del sistema experto basado en reglas,
-con capacidad de enriquecimiento mediante el sistema RAG.
-"""
-
 from typing import Dict, Any, List, Optional
 import json
 from math import ceil
@@ -354,6 +347,8 @@ class ExpertEngine:
                 'recommend_boiler': recommend_boiler,
                 'recommend_floor_heating_kit': recommend_floor_heating_kit,
                 'recommend_radiator_from_catalog': recommend_radiator_from_catalog,
+                'recommend_towel_rack_from_catalog': recommend_towel_rack_from_catalog,
+                'format_towel_rack_recommendation': format_towel_rack_recommendation,
                 'load_product_catalog': load_product_catalog,
                 'ceil': ceil,
                 'context': context
@@ -377,10 +372,10 @@ class ExpertEngine:
 # Funciones auxiliares (mantenidas de app.py)
 
 def filter_radiators(radiator_type: str, installation: str, style: str, 
-                    color: str, heat_load: float) -> List[Dict[str, Any]]:
+                    color: str, heat_load: float) -> Dict[str, Any]:
     """
-    Filtra radiadores según las preferencias del usuario.
-    Usa el cargador dinámico de productos desde Excel.
+    Filtra y recomienda UN SOLO radiador según las preferencias del usuario.
+    Usa products_catalog.json como fuente de datos.
     
     Args:
         radiator_type: Tipo de radiador
@@ -390,82 +385,91 @@ def filter_radiators(radiator_type: str, installation: str, style: str,
         heat_load: Carga térmica requerida
         
     Returns:
-        Lista de radiadores recomendados
+        UN radiador recomendado (el más adecuado)
     """
-    loader = get_product_loader()
-    radiators = loader.filter_radiators_by_criteria(
-        radiator_type=radiator_type,
-        installation=installation,
-        style=style,
-        color=color,
-        heat_load=heat_load
-    )
+    # Usar la función de recomendación del catálogo
+    # Convertir heat_load de kcal/h a W
+    power_w = heat_load / 0.859845
     
-    # Formatear para compatibilidad con código existente
-    recommended = []
-    for rad in radiators:
-        recommended.append({
-            'name': rad['name'],
-            'description': rad['description'],
-            'coeficiente': rad.get('coeficiente', 1.0),
-            'potencia': rad['potencia'],
-            'colors': rad['colors']
-        })
+    # Obtener recomendación del catálogo
+    recommended = recommend_radiator_from_catalog(power_w)
     
-    return recommended[:3]  # Top 3 recomendaciones
+    # Si no hay recomendación, retornar genérico
+    if not recommended:
+        return {
+            'model': 'Radiador genérico',
+            'description': f'Radiador para {heat_load:.0f} kcal/h',
+            'family': 'Radiadores',
+            'power_required_kcal': heat_load
+        }
+    
+    return recommended
 
 
-def format_radiator_recommendations(models: List[Dict[str, Any]], 
+def format_radiator_recommendations(model: Dict[str, Any], 
                                    heat_load: float) -> str:
     """
-    Formatea las recomendaciones de radiadores para mostrarlas al usuario.
+    Formatea la recomendación de UN radiador para mostrarlo al usuario.
     
     Args:
-        models: Lista de modelos recomendados
+        model: Modelo recomendado (diccionario)
         heat_load: Carga térmica requerida
         
     Returns:
-        Texto formateado con las recomendaciones
+        Texto formateado con la recomendación
     """
-    if not models or not isinstance(models, list):
-        return "No encontramos modelos que coincidan con tus requisitos. Por favor intenta con diferentes parámetros."
+    if not model or not isinstance(model, dict):
+        return "No encontramos un modelo que coincida con tus requisitos. Por favor intenta con diferentes parámetros."
     
-    result = []
-    for i, model in enumerate(models, 1):
-        try:
-            potencia_efectiva = model.get('potencia', 0) * model.get('coeficiente', 1)
-            modulos_estimados = ceil(heat_load / potencia_efectiva) if potencia_efectiva > 0 else 0
-            
-            model_info = [
-                f"{i}. {model.get('name', 'Modelo desconocido')}",
-                f"   - Potencia efectiva: {potencia_efectiva:.0f} kcal/h",
-                f"   - Módulos estimados: {modulos_estimados}",
-                f"   - Descripción: {model.get('description', 'Sin descripción disponible')}"
-            ]
-            
-            if 'colors' in model:
-                model_info.append(f"   - Colores disponibles: {', '.join(model['colors'])}")
-            
-            result.append("\n".join(model_info))
-        except Exception as e:
-            print(f"Error formateando modelo {model}: {e}")
-            continue
-    
-    return "\n\n".join(result) if result else "No se pudieron generar recomendaciones."
+    try:
+        # Obtener información del producto
+        model_name = model.get('model', 'Modelo desconocido')
+        description = model.get('description', 'Sin descripción disponible')
+        power_kcal = model.get('power_required_kcal', heat_load)
+        url = model.get('url', '')
+        
+        # Formatear recomendación
+        result = [
+            f"✅ PRODUCTO RECOMENDADO: {model_name}",
+            f"",
+            f"📋 Descripción:",
+            f"{description}",
+            f"",
+            f"⚡ Potencia requerida: {power_kcal:.0f} kcal/h",
+        ]
+        
+        # Agregar características técnicas si existen
+        if 'technical_features' in model and model['technical_features']:
+            result.append("")
+            result.append("🔧 Características técnicas:")
+            for feature in model['technical_features'][:3]:  # Mostrar solo las primeras 3
+                result.append(f"  • {feature}")
+        
+        # Agregar URL si existe
+        if url:
+            result.append("")
+            result.append(f"🔗 Más información: {url}")
+        
+        return "\n".join(result)
+        
+    except Exception as e:
+        print(f"Error formateando modelo {model}: {e}")
+        return f"Recomendación: {model.get('model', 'Producto PEISA')}"
 
 
 def load_product_catalog(catalog_path: str = "data/products_catalog.json") -> List[Dict[str, Any]]:
     """
-    Carga el catálogo de productos dinámicamente desde Excel.
-    El parámetro catalog_path se mantiene por compatibilidad pero no se usa.
+    Carga el catálogo de productos desde products_catalog.json.
+    Este es el mismo catálogo que usa el chatbot Soldy.
     
     Args:
-        catalog_path: Ruta al archivo del catálogo (no usado, por compatibilidad)
+        catalog_path: Ruta al archivo del catálogo JSON
         
     Returns:
-        Lista de productos cargados desde Excel
+        Lista de productos cargados desde products_catalog.json
     """
     loader = get_product_loader()
+    # Retornar todos los productos del catálogo
     return loader.get_all_products()
 
 
@@ -473,6 +477,7 @@ def recommend_boiler(power_required_w: float, boiler_type: str,
                     catalog: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
     """
     Recomienda una caldera específica del catálogo según la potencia requerida.
+    Usa products_catalog.json como fuente de datos.
     
     Args:
         power_required_w: Potencia requerida en Watts
@@ -480,7 +485,7 @@ def recommend_boiler(power_required_w: float, boiler_type: str,
         catalog: Catálogo de productos (se carga automáticamente si no se provee)
         
     Returns:
-        Diccionario con la caldera recomendada
+        Diccionario con la caldera recomendada del catálogo
     """
     if catalog is None:
         catalog = load_product_catalog()
@@ -488,92 +493,135 @@ def recommend_boiler(power_required_w: float, boiler_type: str,
     # Filtrar calderas del catálogo
     boilers = [p for p in catalog if p.get('family') == 'Calderas']
     
-    # Filtrar por tipo si se especifica
-    type_map = {'mural': 'Caldera mural', 'piso': 'Caldera de piso'}
-    if boiler_type in type_map:
-        boilers = [b for b in boilers if b.get('type') == type_map[boiler_type]]
+    # Filtrar por tipo si se especifica (buscar en type y description)
+    if boiler_type == 'mural':
+        boilers = [b for b in boilers 
+                  if 'mural' in b.get('type', '').lower() 
+                  or 'mural' in b.get('description', '').lower()]
+    elif boiler_type == 'piso':
+        boilers = [b for b in boilers 
+                  if 'piso' in b.get('type', '').lower() 
+                  or 'potencia' in b.get('category', '').lower()]
     
     if not boilers:
         return {
             'model': 'Caldera genérica',
-            'power_w': power_required_w,
-            'description': f'Caldera {boiler_type} de {power_required_w:.0f}W requerida'
+            'description': f'Caldera {boiler_type} de {power_required_w:.0f}W requerida',
+            'url': '',
+            'family': 'Calderas'
         }
     
-    # Encontrar la caldera con potencia más cercana (pero suficiente)
-    suitable_boilers = [b for b in boilers if b.get('power_w', 0) >= power_required_w]
+    # Convertir potencia a kcal/h para referencia
+    power_kcal = power_required_w * 0.859845
     
-    if suitable_boilers:
-        # Elegir la de menor potencia que cumpla el requisito
-        recommended = min(suitable_boilers, key=lambda x: x.get('power_w', float('inf')))
-    else:
-        # Si ninguna cumple, elegir la de mayor potencia disponible
-        recommended = max(boilers, key=lambda x: x.get('power_w', 0))
+    # Priorizar calderas según características:
+    # 1. Calderas doble servicio (más versátiles)
+    # 2. Calderas con tecnología inteligente (Prima Tec Smart)
+    # 3. Calderas económicas (Diva)
+    def get_priority(boiler):
+        desc = boiler.get('description', '').lower()
+        model = boiler.get('model', '').lower()
+        
+        # Prioridad 1: Doble servicio con wifi
+        if 'doble servicio' in desc and ('wifi' in desc or 'smart' in model):
+            return 1
+        # Prioridad 2: Doble servicio
+        elif 'doble servicio' in desc:
+            return 2
+        # Prioridad 3: Otras calderas
+        else:
+            return 3
+    
+    boilers_sorted = sorted(boilers, key=get_priority)
+    recommended = boilers_sorted[0]
+    
+    # Agregar información de potencia calculada al resultado
+    recommended['power_required_w'] = power_required_w
+    recommended['power_required_kcal'] = power_kcal
     
     return recommended
 
 
-def recommend_floor_heating_kit(surface_m2: float, 
+def recommend_floor_heating_kit(surface_m2: float, zona_geografica: str = 'norte',
                                catalog: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
     """
-    Recomienda un kit de piso radiante según la superficie.
+    Recomienda productos para piso radiante según la superficie y zona.
+    Usa products_catalog.json como fuente de datos.
     
     Args:
         surface_m2: Superficie en metros cuadrados
+        zona_geografica: Zona del país ('norte' o 'sur')
         catalog: Catálogo de productos
         
     Returns:
-        Diccionario con el kit recomendado
+        Diccionario con los productos recomendados para piso radiante
     """
     if catalog is None:
         catalog = load_product_catalog()
     
-    # Filtrar kits de piso radiante
-    kits = [p for p in catalog if p.get('family') == 'Piso Radiante' and 'KIT' in p.get('model', '')]
+    # Calcular potencia necesaria según zona (de peisa_advisor_knowledge_base.json)
+    potencia_m2 = {'norte': 100, 'sur': 125}
+    power_required_w = surface_m2 * potencia_m2.get(zona_geografica, 100)
     
-    if not kits:
-        return {
-            'model': f'Kit Piso Radiante {surface_m2:.0f}m²',
-            'description': f'Kit completo para {surface_m2:.0f}m²'
-        }
+    # Buscar calderas adecuadas para piso radiante (doble servicio)
+    calderas = [p for p in catalog 
+                if p.get('family') == 'Calderas' 
+                and 'doble servicio' in p.get('description', '').lower()]
     
-    # Extraer superficie de cada kit (del campo dimentions o model)
-    for kit in kits:
-        model_name = kit.get('model', '')
-        if 'KIT' in model_name and 'm²' in model_name:
-            try:
-                # Extraer número de m² del nombre (ej: "PEISA PISO RADIANTE KIT 15m²")
-                surface_str = model_name.split('KIT')[1].strip().replace('m²', '')
-                kit['surface_m2'] = float(surface_str)
-            except:
-                kit['surface_m2'] = 0
+    # Buscar productos relacionados con piso radiante
+    piso_radiante_products = [p for p in catalog 
+                             if 'piso radiante' in p.get('description', '').lower() 
+                             or 'piso radiante' in p.get('model', '').lower()]
     
-    # Encontrar el kit más adecuado
-    suitable_kits = [k for k in kits if k.get('surface_m2', 0) >= surface_m2]
+    # Si hay calderas, recomendar la mejor para piso radiante
+    if calderas:
+        # Priorizar calderas con wifi/smart
+        calderas_sorted = sorted(calderas, 
+                                key=lambda x: ('wifi' in x.get('description', '').lower() or 
+                                             'smart' in x.get('model', '').lower()),
+                                reverse=True)
+        
+        recommended_caldera = calderas_sorted[0]
+        recommended_caldera['power_required_w'] = power_required_w
+        recommended_caldera['power_required_kcal'] = power_required_w * 0.859845
+        recommended_caldera['surface_m2'] = surface_m2
+        recommended_caldera['zona_geografica'] = zona_geografica
+        
+        return recommended_caldera
     
-    if suitable_kits:
-        recommended = min(suitable_kits, key=lambda x: x.get('surface_m2', float('inf')))
-    else:
-        # Si la superficie es mayor que todos los kits, recomendar el más grande
-        recommended = max(kits, key=lambda x: x.get('surface_m2', 0))
-        # Calcular cuántos kits se necesitan
-        kits_needed = ceil(surface_m2 / recommended.get('surface_m2', 1))
-        recommended['kits_needed'] = kits_needed
+    # Si no hay calderas específicas, retornar el primer producto relacionado
+    if piso_radiante_products:
+        recommended = piso_radiante_products[0]
+        recommended['power_required_w'] = power_required_w
+        recommended['power_required_kcal'] = power_required_w * 0.859845
+        recommended['surface_m2'] = surface_m2
+        recommended['zona_geografica'] = zona_geografica
+        return recommended
     
-    return recommended
+    # Si no hay productos, retornar información genérica
+    return {
+        'model': f'Sistema Piso Radiante {surface_m2:.0f}m²',
+        'description': f'Sistema completo para {surface_m2:.0f}m² en zona {zona_geografica}',
+        'family': 'Piso Radiante',
+        'power_required_w': power_required_w,
+        'power_required_kcal': power_required_w * 0.859845,
+        'surface_m2': surface_m2,
+        'zona_geografica': zona_geografica
+    }
 
 
 def recommend_radiator_from_catalog(power_required_w: float,
-                                   catalog: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
+                                   catalog: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
     """
-    Recomienda radiadores del catálogo según la potencia requerida.
+    Recomienda UN SOLO radiador del catálogo según la potencia requerida.
+    Usa products_catalog.json como fuente de datos.
     
     Args:
         power_required_w: Potencia requerida en Watts
         catalog: Catálogo de productos
         
     Returns:
-        Lista de radiadores recomendados
+        UN radiador recomendado del catálogo (el más adecuado)
     """
     if catalog is None:
         catalog = load_product_catalog()
@@ -582,18 +630,147 @@ def recommend_radiator_from_catalog(power_required_w: float,
     radiators = [
         p for p in catalog 
         if p.get('family') == 'Radiadores' 
-        and 'toallero' not in p.get('type', '').lower()
-        and 'TOALLERO' not in p.get('model', '')
+        and p.get('category') == 'Radiadores'  # Excluye toalleros
+        and 'toallero' not in p.get('model', '').lower()
     ]
     
     if not radiators:
-        return []
+        return {
+            'model': 'Radiador genérico',
+            'description': f'Radiador para {power_required_w:.0f}W',
+            'family': 'Radiadores'
+        }
     
-    # Ordenar por cercanía a la potencia requerida
-    for rad in radiators:
-        rad['power_diff'] = abs(rad.get('power_w', 0) - power_required_w)
+    # Convertir potencia a kcal/h para referencia
+    power_kcal = power_required_w * 0.859845
     
-    radiators.sort(key=lambda x: x['power_diff'])
+    # Priorizar según potencia requerida
+    if power_kcal < 2000:
+        # Para potencias bajas: priorizar radiadores eléctricos
+        electric_rads = [r for r in radiators 
+                        if 'eléctrico' in r.get('model', '').lower() 
+                        or 'electrico' in r.get('model', '').lower()
+                        or 'electric' in r.get('type', '').lower()]
+        if electric_rads:
+            # Retornar el PRIMER radiador eléctrico (el más adecuado)
+            recommended = electric_rads[0]
+            recommended['power_required_w'] = power_required_w
+            recommended['power_required_kcal'] = power_kcal
+            return recommended
     
-    # Retornar top 3
-    return radiators[:3]
+    # Para potencias mayores: ordenar por popularidad y características
+    # Prioridad: Broen, Tropical, Gamma, BR (modelos conocidos de PEISA)
+    priority_models = ['Broen', 'Tropical', 'Gamma', 'BR', 'Radiador']
+    
+    def get_priority(rad):
+        model = rad.get('model', '')
+        desc = rad.get('description', '')
+        
+        # Buscar en modelo y descripción
+        for i, priority in enumerate(priority_models):
+            if priority.lower() in model.lower() or priority.lower() in desc.lower():
+                return i
+        return len(priority_models)
+    
+    radiators_sorted = sorted(radiators, key=get_priority)
+    
+    # Retornar EL MEJOR radiador (el primero de la lista ordenada)
+    recommended = radiators_sorted[0]
+    recommended['power_required_w'] = power_required_w
+    recommended['power_required_kcal'] = power_kcal
+    
+    return recommended
+
+
+def recommend_towel_rack_from_catalog(catalog: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+    """
+    Recomienda UN toallero del catálogo.
+    Usa products_catalog.json como fuente de datos.
+    
+    Args:
+        catalog: Catálogo de productos
+        
+    Returns:
+        UN toallero recomendado del catálogo
+    """
+    if catalog is None:
+        catalog = load_product_catalog()
+    
+    # Filtrar toalleros del catálogo
+    towel_racks = [
+        p for p in catalog 
+        if p.get('category') == 'Toalleros'
+        or 'toallero' in p.get('model', '').lower()
+        or 'toallero' in p.get('type', '').lower()
+    ]
+    
+    if not towel_racks:
+        return {
+            'model': 'Toallero PEISA',
+            'description': 'Toallero para baño',
+            'family': 'Radiadores',
+            'category': 'Toalleros'
+        }
+    
+    # Priorizar toalleros eléctricos (más versátiles)
+    electric_towel_racks = [
+        t for t in towel_racks
+        if 'eléctrico' in t.get('model', '').lower()
+        or 'electric' in t.get('type', '').lower()
+    ]
+    
+    if electric_towel_racks:
+        return electric_towel_racks[0]
+    
+    # Si no hay eléctricos, retornar el primero
+    return towel_racks[0]
+
+
+def format_towel_rack_recommendation(model: Dict[str, Any]) -> str:
+    """
+    Formatea la recomendación de UN toallero para mostrarlo al usuario.
+    
+    Args:
+        model: Modelo de toallero recomendado
+        
+    Returns:
+        Texto formateado con la recomendación
+    """
+    if not model or not isinstance(model, dict):
+        return "No encontramos un toallero que coincida con tus requisitos."
+    
+    try:
+        model_name = model.get('model', 'Toallero PEISA')
+        description = model.get('description', 'Sin descripción disponible')
+        url = model.get('url', '')
+        
+        result = [
+            f"✅ TOALLERO RECOMENDADO: {model_name}",
+            f"",
+            f"📋 Descripción:",
+            f"{description}",
+        ]
+        
+        # Agregar características técnicas si existen
+        if 'technical_features' in model and model['technical_features']:
+            result.append("")
+            result.append("🔧 Características técnicas:")
+            for feature in model['technical_features'][:3]:
+                result.append(f"  • {feature}")
+        
+        # Agregar ventajas si existen
+        if 'advantages' in model and model['advantages']:
+            result.append("")
+            result.append("✨ Ventajas:")
+            for advantage in model['advantages'][:2]:
+                result.append(f"  • {advantage}")
+        
+        if url:
+            result.append("")
+            result.append(f"🔗 Más información: {url}")
+        
+        return "\n".join(result)
+        
+    except Exception as e:
+        print(f"Error formateando toallero {model}: {e}")
+        return f"Recomendación: {model.get('model', 'Toallero PEISA')}"

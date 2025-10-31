@@ -71,8 +71,18 @@
   },
   {
     "id": "seleccion_toallero",
+    "tipo": "calculo",
+    "descripcion": "Recomendar toallero del catálogo",
+    "acciones": [
+      "toallero_recomendado = recommend_towel_rack_from_catalog()",
+      "toallero_formateado = format_towel_rack_recommendation(toallero_recomendado)"
+    ],
+    "siguiente": "mostrar_toallero"
+  },
+  {
+    "id": "mostrar_toallero",
     "tipo": "respuesta",
-    "texto": "Para secado de toallas recomendamos el modelo TOALLERO SCALA:\n- Altura: 800/1500 mm\n- Ancho: 500 mm\n- Potencia: 632/1174 kcal/h\n- Material: Acero\n- Colores: Blanco y cromo",
+    "texto": "Para secado de toallas te recomendamos:\n\n{{toallero_formateado}}",
     "opciones": [
       { "texto": "Calcular otro radiador", "siguiente": "inicio" },
       { "texto": "Finalizar", "siguiente": "fin" }

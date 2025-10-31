@@ -6,8 +6,8 @@ from sentence_transformers import SentenceTransformer
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 
-from app.llm_wrapper import llm
-from app.product_scraper import get_products_catalog
+from app.modules.chatbot.llm_wrapper import llm
+from app.modules.scraping.product_scraper import get_products_catalog
 
 class RAGEngineV2:
     """

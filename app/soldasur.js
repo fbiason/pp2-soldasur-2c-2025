@@ -138,10 +138,10 @@ function startConversation() {
 function handleOptionClick(option) {
     appendMessage('user', option);
     
-    // Categorías de productos
-    const productCategories = ['Calderas', 'Radiadores', 'Termotanques', 'Calefones', 'Toalleros', 'Climatizadores', 'Termostatos'];
+    // Categorías de productos (dinámicas del catálogo)
+    const productCategories = [...new Set(productCatalog.map(p => p.family))].filter(Boolean);
     
-    if (conversationStep === 0 && productCategories.includes(option)) {
+    if (productCategories.includes(option)) {
         showProductsByCategory(option);
         return;
     }
@@ -152,6 +152,9 @@ function handleOptionClick(option) {
         return;
     } else if (option === '📦 Ver otras categorías' || option === '📦 Ver por categoría') {
         showCategoryMenu();
+        return;
+    } else if (option === '🏠 Volver al inicio') {
+        goBack();
         return;
     }
     
@@ -331,17 +334,17 @@ function consultSucursal(city = null, showOnPage = true) {
     const info = {
         rio_grande: {
             name: 'Sucursal Río Grande - Soldasur',
-            address: 'Av. San Martín 1234, Río Grande, Tierra del Fuego',
-            phone: '+54 2964 123456',
-            email: 'riogrande@soldasur.com',
-            mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Av.+San+Martín+1234,+Río+Grande,+Tierra+del+Fuego'
+            address: 'Islas Malvinas 1950, V9421 Río Grande, Tierra del Fuego',
+            phone: '+54 2964 40-1201',
+            email: 'ventasrg@soldasur.com.ar',
+            mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Islas+Malvinas+1950,+V9421+Río+Grande,+Tierra+del+Fuego'
         },
         ushuaia: {
             name: 'Sucursal Ushuaia - Soldasur',
-            address: 'Calle 9 de Julio 210, Ushuaia, Tierra del Fuego',
-            phone: '+54 2901 654321',
-            email: 'ushuaia@soldasur.com',
-            mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Calle+9+de+Julio+210,+Ushuaia,+Tierra+del+Fuego'
+            address: 'Héroes de Malvinas 4180, V9410 Ushuaia, Tierra del Fuego',
+            phone: '+54 2901 43-6392',
+            email: 'ventasush@soldasur.com.ar',
+            mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Héroes+de+Malvinas+4180,+V9410+Ushuaia,+Tierra+del+Fuego'
         }
     };
 
@@ -438,4 +441,165 @@ function consultSucursalFromChat(city) {
     appendMessage('user', `Seleccioné: <strong>${city === 'rio_grande' ? 'Río Grande' : 'Ushuaia'}</strong>`);
     // Mostrar la tarjeta correspondiente en el chat (sin actualizar la página)
     consultSucursal(city, false);
+}
+
+/* ========== BÚSQUEDA DE PRODUCTOS POR CATEGORÍA ========== */
+let productCatalog = [];
+
+// Cargar catálogo de productos
+async function loadProductCatalog() {
+    try {
+        const response = await fetch('../data/products_catalog.json');
+        if (!response.ok) throw new Error('Error cargando catálogo');
+        productCatalog = await response.json();
+        console.log(`✅ Catálogo cargado: ${productCatalog.length} productos`);
+    } catch (error) {
+        console.error('❌ Error cargando catálogo:', error);
+        productCatalog = [];
+    }
+}
+
+// Cargar catálogo al iniciar
+loadProductCatalog();
+
+// Mostrar menú de categorías
+function showCategoryMenu() {
+    appendMessage('system', '📦 <strong>Seleccioná una categoría de productos:</strong>');
+    
+    // Obtener categorías únicas del catálogo
+    const categories = [...new Set(productCatalog.map(p => p.family))].filter(Boolean);
+    
+    if (categories.length === 0) {
+        appendMessage('system', 'No se pudieron cargar las categorías. Por favor, intentá más tarde.');
+        return;
+    }
+    
+    renderOptions(categories, false);
+}
+
+// Mostrar productos por categoría
+function showProductsByCategory(category) {
+    appendMessage('user', `Ver productos de: ${category}`);
+    
+    // Filtrar productos por categoría
+    const products = productCatalog.filter(p => p.family === category);
+    
+    if (products.length === 0) {
+        appendMessage('system', `No se encontraron productos en la categoría ${category}.`);
+        renderOptions(['📦 Ver otras categorías'], false);
+        return;
+    }
+    
+    appendMessage('system', `<strong>${category}</strong> - ${products.length} producto${products.length > 1 ? 's' : ''} disponible${products.length > 1 ? 's' : ''}:`);
+    
+    // Mostrar productos como tarjetas con enlaces
+    const chatContainer = document.getElementById('chat-container');
+    const productsContainer = document.createElement('div');
+    productsContainer.className = 'products-grid fade-in';
+    productsContainer.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin: 12px 0;';
+    
+    products.forEach(product => {
+        const productCard = document.createElement('div');
+        productCard.className = 'product-card';
+        productCard.style.cssText = 'background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; transition: all 0.2s;';
+        productCard.onmouseover = () => productCard.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+        productCard.onmouseout = () => productCard.style.boxShadow = 'none';
+        
+        const productUrl = product.url || '#';
+        const hasUrl = productUrl !== '#' && productUrl !== '';
+        
+        productCard.innerHTML = `
+            <div style="font-weight: 600; color: #1f2937; margin-bottom: 6px; font-size: 14px;">
+                ${product.model || 'Producto'}
+            </div>
+            <div style="color: #6b7280; font-size: 12px; margin-bottom: 8px; line-height: 1.4;">
+                ${product.description ? product.description.substring(0, 100) + (product.description.length > 100 ? '...' : '') : 'Sin descripción'}
+            </div>
+            ${product.type ? `<div style="font-size: 11px; color: #9ca3af; margin-bottom: 8px;">Tipo: ${product.type}</div>` : ''}
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                ${hasUrl ? `
+                    <a href="${productUrl}" target="_blank" 
+                       style="display: inline-block; background: #3b82f6; color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 12px; transition: background 0.2s;"
+                       onmouseover="this.style.background='#2563eb'" 
+                       onmouseout="this.style.background='#3b82f6'">
+                        🔗 Ver en PEISA
+                    </a>
+                ` : ''}
+                <button onclick="consultFromProduct('${product.model}')" 
+                        style="background: #10b981; color: white; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; transition: background 0.2s;"
+                        onmouseover="this.style.background='#059669'" 
+                        onmouseout="this.style.background='#10b981'">
+                    📞 Consultar
+                </button>
+            </div>
+        `;
+        
+        productsContainer.appendChild(productCard);
+    });
+    
+    chatContainer.appendChild(productsContainer);
+    scrollToBottom();
+    
+    // Opciones de navegación
+    renderOptions(['📦 Ver otras categorías', '🏠 Volver al inicio'], false);
+}
+
+// Mostrar todos los productos
+function showAllProducts() {
+    appendMessage('user', 'Ver todos los productos');
+    
+    if (productCatalog.length === 0) {
+        appendMessage('system', 'No se pudieron cargar los productos. Por favor, intentá más tarde.');
+        return;
+    }
+    
+    appendMessage('system', `<strong>Catálogo completo</strong> - ${productCatalog.length} productos disponibles:`);
+    
+    // Agrupar por categoría
+    const byCategory = {};
+    productCatalog.forEach(p => {
+        const cat = p.family || 'Otros';
+        if (!byCategory[cat]) byCategory[cat] = [];
+        byCategory[cat].push(p);
+    });
+    
+    // Mostrar por categorías
+    Object.keys(byCategory).sort().forEach(category => {
+        const products = byCategory[category];
+        appendMessage('system', `<strong>${category}</strong> (${products.length}):`);
+        
+        const chatContainer = document.getElementById('chat-container');
+        const productsContainer = document.createElement('div');
+        productsContainer.className = 'products-grid fade-in';
+        productsContainer.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin: 12px 0;';
+        
+        products.slice(0, 6).forEach(product => {
+            const productCard = document.createElement('div');
+            productCard.className = 'product-card';
+            productCard.style.cssText = 'background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px;';
+            
+            const productUrl = product.url || '#';
+            const hasUrl = productUrl !== '#' && productUrl !== '';
+            
+            productCard.innerHTML = `
+                <div style="font-weight: 600; color: #1f2937; margin-bottom: 6px; font-size: 14px;">
+                    ${product.model || 'Producto'}
+                </div>
+                <div style="color: #6b7280; font-size: 12px; margin-bottom: 8px;">
+                    ${product.description ? product.description.substring(0, 80) + '...' : ''}
+                </div>
+                <div style="display: flex; gap: 6px;">
+                    ${hasUrl ? `<a href="${productUrl}" target="_blank" style="display: inline-block; background: #3b82f6; color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 12px;">🔗 Ver</a>` : ''}
+                    <button onclick="consultFromProduct('${product.model}')" style="background: #10b981; color: white; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">📞 Consultar</button>
+                </div>
+            `;
+            
+            productsContainer.appendChild(productCard);
+        });
+        
+        chatContainer.appendChild(productsContainer);
+    });
+    
+    scrollToBottom();
+    renderOptions(['📦 Ver por categoría', '🏠 Volver al inicio'], false);
 }
