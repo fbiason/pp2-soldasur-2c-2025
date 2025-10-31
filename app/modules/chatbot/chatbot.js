@@ -51,18 +51,18 @@ function showContactInfo(city) {
     if (city === 'riogrande') {
         contactHTML = `
             <div class="bg-blue-50 border-l-4 border-blue-600 p-4 rounded">
-                <div class="font-bold text-blue-900 mb-2">📍 RÍO GRANDE</div>
+                <div class="font-bold text-blue-900 mb-2">RÍO GRANDE</div>
                 <div class="space-y-2 text-sm">
                     <div>
                         <strong>Sucursal 1:</strong><br>
                         Islas Malvinas 1950<br>
-                        📞 Tel. 02964 422350<br>
-                        ✉️ ventasrg@soldasur.com.ar
+                        Tel. 02964 422350<br>
+                        Email: ventasrg@soldasur.com.ar
                     </div>
                     <div class="pt-2 border-t border-blue-200">
                         <strong>Sucursal 2:</strong><br>
                         Av. San Martín 366<br>
-                        📞 Tel. 02964 422131
+                        Tel. 02964 422131
                     </div>
                 </div>
             </div>
@@ -70,18 +70,18 @@ function showContactInfo(city) {
     } else if (city === 'ushuaia') {
         contactHTML = `
             <div class="bg-green-50 border-l-4 border-green-600 p-4 rounded">
-                <div class="font-bold text-green-900 mb-2">📍 USHUAIA</div>
+                <div class="font-bold text-green-900 mb-2">USHUAIA</div>
                 <div class="space-y-2 text-sm">
                     <div>
                         <strong>Sucursal 1:</strong><br>
                         Héroes de Malvinas 4180<br>
-                        📞 Tel. 02901 436392<br>
-                        ✉️ ventasush@soldasur.com.ar
+                        Tel. 02901 436392<br>
+                        Email: ventasush@soldasur.com.ar
                     </div>
                     <div class="pt-2 border-t border-green-200">
                         <strong>Sucursal 2:</strong><br>
                         Gobernador Paz 665<br>
-                        📞 Tel. 02901 430886
+                        Tel. 02901 430886
                     </div>
                 </div>
             </div>
@@ -805,9 +805,7 @@ function renderProducts(products) {
                 </div>
                 <div style="display:flex; align-items:center; gap:8px; margin-left:12px;">
                     <button class="consult-btn" style="background:#2563eb;color:white;border:none;padding:6px 10px;border-radius:6px;font-size:13px;cursor:pointer;" onclick="(function(e){e.stopPropagation(); consultFromProduct('${product.model.replace(/'/g,"\\'")}');})(event)">Consultar</button>
-                    <a href="${product.url}" target="_blank" style="color: #2563eb; text-decoration: none; font-size: 20px;">
-                        ↗
-                    </a>
+                    <a href="${product.url}" target="_blank" style="color: #2563eb; text-decoration: none; font-size: 14px; padding-left:6px;">Ver</a>
                 </div>
             </div>
         `;

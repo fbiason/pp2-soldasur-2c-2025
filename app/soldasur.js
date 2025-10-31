@@ -150,10 +150,10 @@ function handleOptionClick(option) {
     if (option === 'Ver todos') {
         showAllProducts();
         return;
-    } else if (option === '📦 Ver otras categorías' || option === '📦 Ver por categoría') {
+    } else if (option === 'Ver otras categorías' || option === 'Ver por categoría') {
         showCategoryMenu();
         return;
-    } else if (option === '🏠 Volver al inicio') {
+    } else if (option === 'Volver al inicio') {
         goBack();
         return;
     }
@@ -464,7 +464,7 @@ loadProductCatalog();
 
 // Mostrar menú de categorías
 function showCategoryMenu() {
-    appendMessage('system', '📦 <strong>Seleccioná una categoría de productos:</strong>');
+    appendMessage('system', '<strong>Seleccioná una categoría de productos:</strong>');
     
     // Obtener categorías únicas del catálogo
     const categories = [...new Set(productCatalog.map(p => p.family))].filter(Boolean);
@@ -486,7 +486,7 @@ function showProductsByCategory(category) {
     
     if (products.length === 0) {
         appendMessage('system', `No se encontraron productos en la categoría ${category}.`);
-        renderOptions(['📦 Ver otras categorías'], false);
+        renderOptions(['Ver otras categorías'], false);
         return;
     }
     
@@ -522,14 +522,14 @@ function showProductsByCategory(category) {
                        style="display: inline-block; background: #3b82f6; color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 12px; transition: background 0.2s;"
                        onmouseover="this.style.background='#2563eb'" 
                        onmouseout="this.style.background='#3b82f6'">
-                        🔗 Ver en PEISA
+                        Ver en PEISA
                     </a>
                 ` : ''}
                 <button onclick="consultFromProduct('${product.model}')" 
                         style="background: #10b981; color: white; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; transition: background 0.2s;"
                         onmouseover="this.style.background='#059669'" 
                         onmouseout="this.style.background='#10b981'">
-                    📞 Consultar
+                    Consultar
                 </button>
             </div>
         `;
@@ -541,7 +541,7 @@ function showProductsByCategory(category) {
     scrollToBottom();
     
     // Opciones de navegación
-    renderOptions(['📦 Ver otras categorías', '🏠 Volver al inicio'], false);
+    renderOptions(['Ver otras categorías', 'Volver al inicio'], false);
 }
 
 // Mostrar todos los productos
@@ -589,8 +589,8 @@ function showAllProducts() {
                     ${product.description ? product.description.substring(0, 80) + '...' : ''}
                 </div>
                 <div style="display: flex; gap: 6px;">
-                    ${hasUrl ? `<a href="${productUrl}" target="_blank" style="display: inline-block; background: #3b82f6; color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 12px;">🔗 Ver</a>` : ''}
-                    <button onclick="consultFromProduct('${product.model}')" style="background: #10b981; color: white; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">📞 Consultar</button>
+                    ${hasUrl ? `<a href="${productUrl}" target="_blank" style="display: inline-block; background: #3b82f6; color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 12px;">Ver</a>` : ''}
+                    <button onclick="consultFromProduct('${product.model}')" style="background: #10b981; color: white; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">Consultar</button>
                 </div>
             `;
             
@@ -601,5 +601,5 @@ function showAllProducts() {
     });
     
     scrollToBottom();
-    renderOptions(['📦 Ver por categoría', '🏠 Volver al inicio'], false);
+    renderOptions(['Ver por categoría', 'Volver al inicio'], false);
 }
