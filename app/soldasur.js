@@ -174,19 +174,22 @@ function handleOptionClick(option) {
         return;
     }
     
+    // Opciones post-cálculo (manejar antes para no ser interceptadas por el flujo experto)
+    if (option === 'Nuevo cálculo') {
+        // Reiniciar estado y volver a iniciar el sistema experto de inmediato
+        resetExpertSystem();
+        showBackButton();
+        startExpertSystem();
+        return;
+    } else if (option === 'Hacer una pregunta' || option.includes('pregunta')) {
+        startChatbot();
+        return;
+    }
+
     // Respuestas del sistema experto
     if (conversationStep >= 1 && conversationStep <= 8) {
         handleExpertSystemResponse(option);
         return;
-    }
-    
-    // Opciones post-cálculo
-    if (option === 'Nuevo cálculo' || option.includes('Hacer un cálculo')) {
-        resetExpertSystem();
-        appendMessage('system', '¡Perfecto! Iniciemos un nuevo cálculo.');
-        startExpertSystem();
-    } else if (option === 'Hacer una pregunta' || option.includes('pregunta')) {
-        startChatbot();
     }
 }
 

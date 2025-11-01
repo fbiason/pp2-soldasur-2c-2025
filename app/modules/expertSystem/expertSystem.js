@@ -127,10 +127,11 @@ function calculateHeatingLoad() {
     if (aislacion === 'Buena') factor *= 0.9;
     
     const cargaTermica = Math.round(superficie * factor);
+    const cargaTermicaKcal = Math.round(cargaTermica * 0.859845);
     contextData['Carga térmica'] = cargaTermica + ' W';
     updateContextPanel();
     
-    appendMessage('system', `🎉 ¡Cálculo completado!<br><br>📊 Resultados:<br>- Superficie: ${superficie}m²<br>- Zona: ${zona}<br>- Aislación: ${aislacion}<br>- Carga térmica: ${cargaTermica} W<br><br>💡 Producto recomendado:`);
+        appendMessage('system', `¡Perfecto! Analizando tu ambiente de <strong>${superficie}m²</strong> ubicado en la zona <strong>${zona}</strong> con aislación <strong>${aislacion.toLowerCase()}</strong>, veo que necesitas una potencia de calefacción de <strong>${cargaTermica}W</strong> (aproximadamente <strong>${cargaTermicaKcal} kcal/h</strong>).<br><br>Basado en estos datos, te voy a recomendar el mejor equipo para tu hogar:`);
     
     setTimeout(() => {
         showRecommendedProducts(tipo);
@@ -336,7 +337,13 @@ function calculateRadiatorLoad() {
     contextData['Carga térmica'] = cargaTermica + ' kcal/h';
     updateContextPanel();
     
-    appendMessage('system', `🎉 ¡Cálculo completado!<br><br>📊 Resultados:<br>- Ambiente: ${largo}m x ${ancho}m x ${alto}m (${volumen.toFixed(1)}m³)<br>- Aislación: ${aislacion}<br>- Carga térmica: ${cargaTermica} kcal/h<br><br>💡 Producto recomendado:`);
+    const descripcionAislacion = aislacion.toLowerCase().includes('alta') ? 'buena aislación térmica' : 
+                                aislacion.toLowerCase().includes('baja') ? 'aislación térmica básica' : 
+                                'aislación térmica media';
+    
+        appendMessage('system', `¡Excelente! He analizado tu ambiente de <strong>${largo}m x ${ancho}m x ${alto}m</strong> (<strong>${volumen.toFixed(1)}m³</strong>) que cuenta con <strong>${descripcionAislacion}</strong>.<br><br>
+        Para este espacio, necesitas una potencia de calefacción de <strong>${cargaTermica} kcal/h</strong>. ${objetivo.toLowerCase().includes('principal') ? 'Al ser calefacción principal, es importante elegir un radiador eficiente.' : 'Al ser calefacción complementaria, podemos optimizar la elección.'}<br><br>
+        Basado en tus preferencias de instalación <strong>${instalacion.toLowerCase()}</strong>, estilo <strong>${estilo.toLowerCase()}</strong> y color <strong>${color.toLowerCase()}</strong>, te recomiendo:`);
     
     setTimeout(() => {
         showRecommendedProductsForRadiators(cargaTermica, objetivo, instalacion, estilo, color);
@@ -363,7 +370,13 @@ function calculateBoilerLoad() {
     contextData['Tipo caldera'] = tipoCaldera;
     updateContextPanel();
     
-    appendMessage('system', `🎉 ¡Cálculo completado!<br><br>📊 Resultados:<br>- Carga térmica total: ${cargaTermicaTotal} kcal/h<br>- Factor de seguridad: 20%<br>- Potencia requerida: ${potenciaRequerida} kcal/h<br>- Tipo: ${tipoCaldera}<br><br>💡 Producto recomendado:`);
+    const mensajeACS = necesitaACS === 'Sí, necesito ACS' ? 
+        'Como necesitas agua caliente sanitaria, buscaremos una caldera de doble servicio que cubra ambas necesidades.' :
+        'Como solo necesitas calefacción, podemos enfocarnos en una caldera optimizada para este uso.';
+    
+        appendMessage('system', `¡Muy bien! Analizando tus necesidades, veo que requieres una potencia base de <strong>${cargaTermicaTotal} kcal/h</strong>. Aplicando un factor de seguridad del 20% para garantizar un funcionamiento óptimo, necesitaremos una caldera de <strong>${potenciaRequerida} kcal/h</strong>.<br><br>
+    ${mensajeACS}<br><br>
+    Basado en estos requerimientos, te recomiendo:`);
     
     setTimeout(() => {
         showRecommendedProductsForBoilers(potenciaRequerida, necesitaACS);
@@ -545,14 +558,14 @@ function showTowelRackRecommendation() {
         p.model.toLowerCase().includes('domino')
     );
     
-    appendMessage('system', '🎉 Para secado de toallas te recomendamos:');
+    appendMessage('system', 'Para secado de toallas te recomendamos:');
     
     if (toalleros.length > 0) {
         // Priorizar Domino S (eléctrico, fácil instalación)
         const recommendedTowelRack = toalleros.find(p => p.model.includes('Domino S')) || toalleros[0];
         renderProducts([recommendedTowelRack]);
     } else {
-        console.error('❌ No se encontraron toalleros en el catálogo');
+        console.error(' No se encontraron toalleros en el catálogo');
     }
     
     setTimeout(() => {
