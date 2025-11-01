@@ -66,6 +66,11 @@ class ProductLoader:
         if self.products_df is None:
             return
         
+        # Verificar que existe la columna 'type'
+        if 'type' not in self.products_df.columns:
+            print("Advertencia: Columna 'type' no encontrada en el catálogo")
+            return
+        
         radiators_df = self.products_df[self.products_df['type'] == 'Radiador']
         
         for _, row in radiators_df.iterrows():
@@ -98,6 +103,10 @@ class ProductLoader:
         if self.products_df is None:
             return
         
+        # Verificar que existe la columna 'type'
+        if 'type' not in self.products_df.columns:
+            return
+        
         boilers_df = self.products_df[self.products_df['type'] == 'Caldera']
         
         for _, row in boilers_df.iterrows():
@@ -119,6 +128,10 @@ class ProductLoader:
     def _process_floor_heating(self) -> None:
         """Procesa sistemas de piso radiante del catálogo"""
         if self.products_df is None:
+            return
+        
+        # Verificar que existe la columna 'type'
+        if 'type' not in self.products_df.columns:
             return
         
         floor_df = self.products_df[self.products_df['type'] == 'Piso Radiante']

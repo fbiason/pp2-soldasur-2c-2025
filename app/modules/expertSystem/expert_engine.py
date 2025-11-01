@@ -5,6 +5,7 @@ from bisect import bisect_left
 from pathlib import Path
 from .models import RADIATOR_MODELS
 from .product_loader import get_product_loader
+from app.app import replace_variables, perform_calculation
 
 
 class ExpertEngine:
@@ -69,6 +70,8 @@ class ExpertEngine:
         current_node_id = expert_state.get('current_node', 'inicio')
         context = expert_state.get('variables', {})
         
+        print(f"[DEBUG] Processing node: {current_node_id}, option_index: {option_index}, input_values: {input_values}")
+        
         node = self.get_node_by_id(current_node_id)
         if not node:
             return {
@@ -84,9 +87,11 @@ class ExpertEngine:
             
             # Avanzar al siguiente nodo
             next_node_id = result.get('next_node')
+            print(f"[DEBUG] next_node_id from result: {next_node_id}")
             if next_node_id:
                 expert_state['current_node'] = next_node_id
                 node = self.get_node_by_id(next_node_id)
+                print(f"[DEBUG] Advanced to node: {next_node_id}, node found: {node is not None}")
         
         # Obtener el mensaje del nodo actual
         return await self._get_node_message(node, context, expert_state)
@@ -119,11 +124,21 @@ class ExpertEngine:
         elif 'opciones' in node and option_index is not None:
             if 0 <= option_index < len(node['opciones']):
                 selected = node['opciones'][option_index]
-                # Guardar el valor usando el ID del nodo como clave
-                context[node['id']] = selected.get('valor', selected['texto'])
-                # Guardar también el texto para mostrar
-                context[f"{node['id']}_texto"] = selected['texto']
+                print(f"[DEBUG] Selected option: {selected.get('texto')}, siguiente: {selected.get('siguiente')}")
                 
+                # Determinar qué variable usar (la definida en el nodo o el ID del nodo)
+                variable_name = node.get('variable', node['id'])
+                
+                # Guardar el valor
+                context[variable_name] = selected.get('valor', selected['texto'])
+                
+                # Guardar también el texto para mostrar (si hay variable definida)
+                if 'variable' in node:
+                    context[f"{variable_name}_texto"] = selected['texto']
+                else:
+                    context[f"{node['id']}_texto"] = selected['texto']
+                
+                print(f"[DEBUG] Returning next_node: {selected['siguiente']}")
                 return {'next_node': selected['siguiente']}
             else:
                 return {
@@ -136,33 +151,52 @@ class ExpertEngine:
     async def _get_node_message(self, node: Dict[str, Any], context: Dict[str, Any],
                                expert_state: Dict[str, Any]) -> Dict[str, Any]:
         """Obtiene el mensaje a mostrar para el nodo actual"""
+        print(f"[DEBUG] _get_node_message for node: {node['id']}, tipo: {node.get('tipo')}, has opciones: {'opciones' in node}, has pregunta: {'pregunta' in node}")
         
         # Nodo de cálculo: ejecutar y avanzar automáticamente
         if node.get('tipo') == 'calculo':
-            self._perform_calculation(node, context)
-            expert_state['current_node'] = node['siguiente']
-            next_node = self.get_node_by_id(node['siguiente'])
-            return await self._get_node_message(next_node, context, expert_state)
+            try:
+                perform_calculation(node, context)
+                # Actualizar el contexto en expert_state
+                expert_state['variables'] = context
+                expert_state['current_node'] = node['siguiente']
+                next_node = self.get_node_by_id(node['siguiente'])
+                return await self._get_node_message(next_node, context, expert_state)
+            except Exception as e:
+                print(f"[ERROR] Error en cálculo del nodo {node['id']}: {e}")
+                import traceback
+                traceback.print_exc()
+                return {
+                    'type': 'error',
+                    'node_id': node['id'],
+                    'text': f'Error al procesar el cálculo: {str(e)}',
+                    'error': str(e),
+                    'expert_state': expert_state
+                }
         
         # Nodo con pregunta
         elif 'pregunta' in node:
+            # Actualizar variables en el estado
+            expert_state['variables'] = context
+            
             response = {
                 'type': 'question',
                 'node_id': node['id'],
-                'text': self._replace_variables(node['pregunta'], context),
-                'variables': context
+                'text': replace_variables(node['pregunta'], context),
+                'expert_state': expert_state
             }
             
             # Agregar opciones si existen
             if 'opciones' in node:
                 response['options'] = [opt['texto'] for opt in node['opciones']]
-            
-            # Nodo de entrada de usuario
+            # Si NO tiene opciones pero ES un nodo de entrada de usuario
             elif node.get('tipo') == 'entrada_usuario':
                 if 'variable' in node:
+                    print(f"[DEBUG] Setting input_type='number' for variable: {node['variable']}")
                     response['input_type'] = 'number'
-                    response['input_label'] = 'Ingrese el valor'
+                    response['input_label'] = node.get('etiqueta', 'Ingrese el valor')
                 elif 'variables' in node:
+                    print(f"[DEBUG] Setting input_type='multiple' for variables: {node['variables']}")
                     response['input_type'] = 'multiple'
                     response['inputs'] = [
                         {'name': var, 'label': f'Ingrese {var} (metros)', 'type': 'number'}
@@ -179,11 +213,14 @@ class ExpertEngine:
         
         # Nodo de respuesta (final o intermedio)
         elif node.get('tipo') == 'respuesta':
+            # Actualizar variables en el estado
+            expert_state['variables'] = context
+            
             response = {
                 'type': 'response',
                 'node_id': node['id'],
-                'text': self._replace_variables(node['texto'], context),
-                'variables': context
+                'text': replace_variables(node['texto'], context),
+                'expert_state': expert_state
             }
             
             # Si tiene opciones, no es final

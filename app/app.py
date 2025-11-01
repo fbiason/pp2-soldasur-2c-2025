@@ -155,29 +155,174 @@ def calculate_boiler(total_heat_load: float, has_hot_water: bool = False) -> Dic
         'factor_seguridad': safety_factor
     }
 
+def recommend_towel_rack_from_catalog() -> Dict[str, Any]:
+    """
+    Recomienda un toallero del catálogo basado en popularidad y características
+    
+    Returns:
+        Diccionario con información del toallero recomendado
+    """
+    # Toalleros recomendados por defecto
+    towel_racks = [
+        {
+            'name': 'Toallero Cromado Premium 500x800',
+            'potencia': 350,
+            'medidas': '500mm x 800mm',
+            'color': 'Cromado',
+            'descripcion': 'Toallero de diseño moderno con acabado cromado brillante',
+            'precio_aprox': 'Consultar'
+        },
+        {
+            'name': 'Toallero Blanco Clásico 600x1000',
+            'potencia': 450,
+            'medidas': '600mm x 1000mm',
+            'color': 'Blanco',
+            'descripcion': 'Toallero tradicional de gran capacidad',
+            'precio_aprox': 'Consultar'
+        }
+    ]
+    
+    # Devolver el primero como recomendación principal
+    return towel_racks[0]
+
+def format_towel_rack_recommendation(towel_rack: Dict[str, Any]) -> str:
+    """
+    Formatea la recomendación de toallero para mostrarla al usuario
+    
+    Args:
+        towel_rack: Diccionario con información del toallero
+        
+    Returns:
+        String formateado con la recomendación
+    """
+    if not towel_rack:
+        return "No se encontró un toallero adecuado. Por favor contacte a nuestro equipo de ventas."
+    
+    recommendation = [
+        f"🔥 {towel_rack.get('name', 'Toallero')}",
+        f"   • Potencia: {towel_rack.get('potencia', 'N/A')} W",
+        f"   • Medidas: {towel_rack.get('medidas', 'N/A')}",
+        f"   • Color: {towel_rack.get('color', 'N/A')}",
+        f"   • {towel_rack.get('descripcion', '')}",
+        f"   • Precio: {towel_rack.get('precio_aprox', 'Consultar')}"
+    ]
+    
+    return "\n".join(recommendation)
+
+def search_floor_heating_products(potencia_watts: float) -> List[Dict[str, Any]]:
+    """
+    Busca productos para piso radiante en el catálogo
+    
+    Args:
+        potencia_watts: Potencia requerida en watts
+        
+    Returns:
+        Lista de productos recomendados
+    """
+    from query.query import search_filtered
+    
+    query = f"piso radiante caño {potencia_watts} watts"
+    products = search_filtered(query, top_k=3)
+    
+    return products if products else []
+
+def search_boiler_products(potencia_kcal: float, tiene_acs: bool = False) -> List[Dict[str, Any]]:
+    """
+    Busca calderas en el catálogo
+    
+    Args:
+        potencia_kcal: Potencia requerida en kcal/h
+        tiene_acs: Si necesita agua caliente sanitaria
+        
+    Returns:
+        Lista de calderas recomendadas
+    """
+    from query.query import search_filtered
+    
+    tipo = "mixta ACS" if tiene_acs else "estándar"
+    query = f"caldera {tipo} {potencia_kcal} kcal"
+    products = search_filtered(query, top_k=3)
+    
+    return products if products else []
+
+def format_product_list(products: List[Dict[str, Any]]) -> str:
+    """
+    Formatea una lista de productos para mostrar al usuario
+    
+    Args:
+        products: Lista de productos del catálogo
+        
+    Returns:
+        String formateado con los productos
+    """
+    if not products:
+        return "No se encontraron productos específicos en el catálogo. Por favor consulte con nuestro equipo de ventas."
+    
+    result = []
+    for i, prod in enumerate(products, 1):
+        prod_info = [
+            f"\n{i}. {prod.get('model', 'Producto')}",
+            f"   • Familia: {prod.get('family', 'N/A')}",
+            f"   • Tipo: {prod.get('type', 'N/A')}"
+        ]
+        
+        if prod.get('power'):
+            prod_info.append(f"   • Potencia: {prod.get('power')} W")
+        
+        if prod.get('dimensions'):
+            prod_info.append(f"   • Dimensiones: {prod.get('dimensions')}")
+            
+        if prod.get('description'):
+            prod_info.append(f"   • {prod.get('description')}")
+        
+        result.append("\n".join(prod_info))
+    
+    return "\n".join(result)
+
 def exec_expression(expr: str, context: Dict[str, Any]) -> None:
     """Ejecuta una expresión matemática y guarda el resultado en el contexto"""
     try:
-        # Agregar funciones especiales al contexto
-        local_context = {
-            'filter_radiators': filter_radiators,
-            'format_radiator_recommendations': format_radiator_recommendations,
-            'calculate_boiler': calculate_boiler,
-            'ceil': ceil,
-            'context': context  # Pasamos el contexto completo
-        }
+        print(f"[DEBUG] Ejecutando expresión: {expr}")
         
         # Dividir la expresión en variable y valor
         var, val_expr = [x.strip() for x in expr.split("=", 1)]
         
-        # Reemplazar context['variable'] por simplemente variable
-        val_expr = val_expr.replace("context['", "").replace("']", "")
+        print(f"[DEBUG] Evaluando: {var} = {val_expr}")
         
-        # Evaluar la expresión con las variables del contexto
-        val = eval(val_expr, {"__builtins__": None}, {**context, **local_context})
+        # Crear un contexto seguro solo con valores simples
+        safe_context = {}
+        for key, value in context.items():
+            # Solo incluir tipos básicos y seguros
+            if isinstance(value, (int, float, str, bool, list, dict, type(None))):
+                safe_context[key] = value
+        
+        # Agregar funciones permitidas
+        safe_context.update({
+            'filter_radiators': filter_radiators,
+            'format_radiator_recommendations': format_radiator_recommendations,
+            'calculate_boiler': calculate_boiler,
+            'recommend_towel_rack_from_catalog': recommend_towel_rack_from_catalog,
+            'format_towel_rack_recommendation': format_towel_rack_recommendation,
+            'search_floor_heating_products': search_floor_heating_products,
+            'search_boiler_products': search_boiler_products,
+            'format_product_list': format_product_list,
+            'ceil': ceil,
+            'round': round,
+            'abs': abs,
+            'min': min,
+            'max': max,
+        })
+        
+        # Evaluar la expresión
+        val = eval(val_expr, {"__builtins__": {}}, safe_context)
         context[var] = val
+        
+        print(f"[DEBUG] Resultado: {var} = {val}")
     except Exception as e:
-        print(f"Error evaluando expresión '{expr}': {e}")
+        print(f"[ERROR] Error evaluando expresión '{expr}': {e}")
+        print(f"[ERROR] Contexto disponible: {list(context.keys())}")
+        import traceback
+        traceback.print_exc()
         raise
 
 

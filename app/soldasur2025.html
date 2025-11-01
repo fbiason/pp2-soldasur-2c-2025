@@ -91,7 +91,7 @@
     <section class="hero-section text-white pt-16 pb-32 px-4 relative overflow-hidden">
         <!-- Imagen de fondo -->
         <div class="absolute inset-0 z-0">
-            <img src="../images/welcome.webp" alt="Welcome" class="w-full h-full object-cover">
+            <img src="images/welcome.webp" alt="Welcome" class="w-full h-full object-cover" onerror="console.error('Error cargando imagen:', this.src)">
         </div>
         <!-- Overlay con gradiente -->
         <div class="absolute inset-0 z-10 hero-gradient" style="opacity: 0.85;"></div>
@@ -464,10 +464,9 @@
             <div id="sucursal-result" class="ml-auto text-sm text-gray-700"></div>
         </div>
     </div>
-<!-- Cargar módulos en orden -->
-<!-- productCatalog.js ya no se usa - el chatbot carga desde products_catalog.json -->
-<script src="modules/expertSystem/expertSystem.js"></script>
-<script src="modules/chatbot/chatbot.js"></script>
-<script src="soldasur.js"></script>
+<!-- Cargar módulos en orden - defer asegura que se carguen después del DOM -->
+<script defer src="soldasur.js"></script>
+<script defer src="modules/expertSystem/expertSystem.js"></script>
+<script defer src="modules/chatbot/chatbot.js"></script>
 </body>
 </html>

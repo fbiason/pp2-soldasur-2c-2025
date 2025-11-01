@@ -46,14 +46,16 @@
     "acciones": [
       "carga_termica = superficie * potencia_m2[zona_geografica]",
       "longitud_total = superficie * densidad_caño",
-      "circuitos = ceil(longitud_total / longitud_maxima_circuito)"
+      "circuitos = ceil(longitud_total / longitud_maxima_circuito)",
+      "productos_piso = search_floor_heating_products(carga_termica)",
+      "productos_formateados = format_product_list(productos_piso)"
     ],
     "siguiente": "resultado_piso_radiante"
   },
   {
     "id": "resultado_piso_radiante",
     "tipo": "respuesta",
-    "texto": "PISO RADIANTE:\n- Superficie: {{superficie}} m²\n- Potencia estimada: {{carga_termica}} W\n- Caños: {{longitud_total}} m\n- Circuitos sugeridos: {{circuitos}} de hasta 100 m\n\n¿Deseás calcular también RADIADORES para otro ambiente?",
+    "texto": "PISO RADIANTE:\n- Superficie: {{superficie}} m²\n- Potencia estimada: {{carga_termica}} W\n- Caños: {{longitud_total}} m\n- Circuitos sugeridos: {{circuitos}} de hasta 100 m\n\n📦 PRODUCTOS RECOMENDADOS:{{productos_formateados}}\n\n¿Deseás calcular también RADIADORES para otro ambiente?",
     "opciones": [
       { "texto": "Sí", "siguiente": "objetivo_radiadores" },
       { "texto": "No", "siguiente": "fin" }
@@ -223,14 +225,16 @@
       "potencia_requerida = resultado_caldera['potencia_requerida']",
       "potencia_recomendada = resultado_caldera['potencia_recomendada']",
       "tipo_caldera = resultado_caldera['tipo_caldera']",
-      "factor_seguridad = resultado_caldera['factor_seguridad']"
+      "factor_seguridad = resultado_caldera['factor_seguridad']",
+      "productos_caldera = search_boiler_products(potencia_recomendada, agua_caliente_sanitaria)",
+      "productos_caldera_formateados = format_product_list(productos_caldera)"
     ],
     "siguiente": "resultado_caldera"
   },
   {
     "id": "resultado_caldera",
     "tipo": "respuesta",
-    "texto": "CÁLCULO DE CALDERA:\n- Carga térmica total: {{carga_termica_total}} kcal/h\n- Factor de seguridad aplicado: {{factor_seguridad}} (20%)\n- Potencia requerida: {{potencia_requerida|round(0)}} kcal/h\n- Potencia recomendada: {{potencia_recomendada}} kcal/h\n- Tipo de caldera: {{tipo_caldera}}\n\n¿Qué deseas hacer ahora?",
+    "texto": "CÁLCULO DE CALDERA:\n- Carga térmica total: {{carga_termica_total}} kcal/h\n- Factor de seguridad aplicado: {{factor_seguridad}} (20%)\n- Potencia requerida: {{potencia_requerida|round(0)}} kcal/h\n- Potencia recomendada: {{potencia_recomendada}} kcal/h\n- Tipo de caldera: {{tipo_caldera}}\n\n📦 CALDERAS RECOMENDADAS:{{productos_caldera_formateados}}\n\n¿Qué deseas hacer ahora?",
     "opciones": [
       { "texto": "Realizar nuevo cálculo", "siguiente": "inicio" },
       { "texto": "Finalizar", "siguiente": "fin" }

@@ -4,6 +4,7 @@ let lastUserResponse = null;
 let isLoading = false;
 let currentMode = 'hybrid';
 let inMainMenu = true;
+let conversationStep = 0;  // Para compatibilidad con el sistema de menú
 
 /* ========== TOGGLE DEL CHAT FLOTANTE ========== */
 let chatIsOpen = false;
@@ -159,24 +160,24 @@ function handleOptionClick(option) {
     }
     
     // Opciones iniciales del menú principal
-    if (conversationStep === 0) {
+    if (inMainMenu) {
         if (option.includes('Guíame') || option.includes('cálculo')) {
+            console.log('[DEBUG] Iniciando sistema experto desde handleOptionClick');
+            inMainMenu = false;
             showBackButton();
             startExpertSystem();
+            return;
         } else if (option.includes('pregunta')) {
+            inMainMenu = false;
             showBackButton();
             startChatbot();
+            return;
         } else if (option.includes('Buscar') || option.includes('productos')) {
+            inMainMenu = false;
             showBackButton();
             showCategoryMenu();
+            return;
         }
-        return;
-    }
-    
-    // Respuestas del sistema experto
-    if (conversationStep >= 1 && conversationStep <= 4) {
-        handleExpertSystemResponse(option);
-        return;
     }
     
     // Opciones post-cálculo
@@ -184,9 +185,15 @@ function handleOptionClick(option) {
         resetExpertSystem();
         appendMessage('system', '¡Perfecto! Iniciemos un nuevo cálculo.');
         startExpertSystem();
+        return;
     } else if (option === 'Hacer una pregunta' || option.includes('pregunta')) {
         startChatbot();
+        return;
     }
+    
+    // Si no está en el menú principal y no es una opción especial,
+    // enviar la opción al sistema experto
+    handleExpertSystemResponse(option);
 }
 
 /* ========== RENDERIZADO DE UI ========== */

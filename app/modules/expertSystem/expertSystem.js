@@ -3,145 +3,152 @@
    ============================================ */
 
 /* Variables del sistema experto */
-let conversationStep = 0;
-let userInputs = {};
-let contextData = {};
+let expertConversationId = null;
+let currentNodeData = null;
 
 /* Iniciar flujo del sistema experto */
-function startExpertSystem() {
-    conversationStep = 0;
-    userInputs = {};
-    contextData = {};
+async function startExpertSystem() {
+    console.log('[DEBUG] startExpertSystem() iniciado');
+    
+    // Generar ID único para la conversación
+    expertConversationId = 'conv_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    console.log('[DEBUG] Conversation ID:', expertConversationId);
+    
     updateContextPanel();
     
     appendMessage('system', '¡Perfecto! Te guiaré paso a paso para calcular tu sistema de calefacción.');
-    setTimeout(() => askQuestion(), 500);
-}
-
-/* Preguntar siguiente paso del flujo */
-function askQuestion() {
-    conversationStep++;
+    console.log('[DEBUG] Mensaje inicial enviado');
     
-    if (conversationStep === 1) {
-        appendMessage('system', '¿Qué tipo de calefacción deseas calcular?');
-        renderOptions(['Piso radiante', 'Radiadores', 'Calderas'], false);
-    } else if (conversationStep === 2) {
-        appendMessage('system', '¿Cuál es la superficie a calefaccionar?');
-        createNumberInput({ input_label: 'Superficie en m²' });
-    } else if (conversationStep === 3) {
-        const superficie = userInputs.superficie;
-        contextData.superficie = superficie + ' m²';
-        updateContextPanel();
-        appendMessage('system', `Perfecto, ${superficie}m². ¿En qué zona geográfica se encuentra?`);
-        renderOptions(['Norte', 'Centro', 'Sur'], false);
-    } else if (conversationStep === 4) {
-        const zona = userInputs.zona;
-        contextData.zona = zona;
-        updateContextPanel();
-        appendMessage('system', '¿Cuál es el nivel de aislación térmica de la vivienda?');
-        renderOptions(['Buena', 'Regular', 'Mala'], false);
-    } else if (conversationStep === 5) {
-        calculateHeatingLoad();
+    try {
+        console.log('[DEBUG] Iniciando fetch a /start');
+        // Iniciar conversación con el backend
+        const response = await fetch('/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ conversation_id: expertConversationId })
+        });
+        
+        console.log('[DEBUG] Respuesta recibida:', response.status);
+        const data = await response.json();
+        console.log('[DEBUG] Datos parseados:', data);
+        currentNodeData = data;
+        
+        // Mostrar la primera pregunta
+        console.log('[DEBUG] Llamando a displayNodeMessage');
+        displayNodeMessage(data);
+        
+    } catch (error) {
+        console.error('[ERROR] Error iniciando sistema experto:', error);
+        appendMessage('system', '❌ Error al iniciar el sistema. Por favor, intenta de nuevo.');
     }
 }
 
-/* Calcular carga térmica */
-function calculateHeatingLoad() {
-    const superficie = parseFloat(userInputs.superficie);
-    const zona = userInputs.zona;
-    const aislacion = userInputs.aislacion;
-    const tipo = userInputs.tipo;
+/* Mostrar mensaje del nodo actual */
+function displayNodeMessage(data) {
+    console.log('[DEBUG] displayNodeMessage - data recibida:', data);
     
-    let factor = zona === 'Norte' ? 80 : zona === 'Centro' ? 100 : 125;
-    if (aislacion === 'Mala') factor *= 1.2;
-    if (aislacion === 'Buena') factor *= 0.9;
-    
-    const cargaTermica = Math.round(superficie * factor);
-    contextData['Carga térmica'] = cargaTermica + ' W';
-    updateContextPanel();
-    
-    appendMessage('system', `🎉 ¡Cálculo completado!<br><br>📊 Resultados:<br>- Superficie: ${superficie}m²<br>- Zona: ${zona}<br>- Aislación: ${aislacion}<br>- Carga térmica: ${cargaTermica} W<br><br>💡 Producto recomendado:`);
-    
-    setTimeout(() => {
-        showRecommendedProducts(tipo);
-        renderOptions(['Nuevo cálculo', 'Hacer una pregunta'], false);
-    }, 500);
-}
-
-/* Mostrar productos recomendados según el tipo y características */
-function showRecommendedProducts(tipo) {
-    // Usar el catálogo JSON cargado globalmente
-    const catalogToUse = peisaProductsFromJSON || [];
-    
-    if (catalogToUse.length === 0) {
-        console.error('❌ Catálogo de productos no cargado');
+    if (data.error) {
+        appendMessage('system', `❌ Error: ${data.error}`);
         return;
     }
     
-    const cargaTermica = parseFloat(contextData['Carga térmica']) || 0;
-    let recommendedProducts = [];
-    
-    // Filtrar por tipo de sistema
-    if (tipo.toLowerCase().includes('radiador')) {
-        // Para radiadores, recomendar según la carga térmica
-        recommendedProducts = catalogToUse.filter(p => p.family === 'Radiadores');
-        
-        // Priorizar radiadores eléctricos para cargas pequeñas (<2000W)
-        if (cargaTermica < 2000) {
-            recommendedProducts = recommendedProducts.filter(p => 
-                p.model.toLowerCase().includes('eléctrico') || 
-                p.model.toLowerCase().includes('electrico')
-            );
-        }
-    } else if (tipo.toLowerCase().includes('caldera')) {
-        // Para calderas, recomendar calderas murales
-        recommendedProducts = catalogToUse.filter(p => 
-            p.family === 'Calderas' && 
-            (p.category?.toLowerCase().includes('mural') || 
-             p.description?.toLowerCase().includes('mural'))
-        );
-    } else if (tipo.toLowerCase().includes('piso')) {
-        // Para piso radiante, recomendar calderas doble servicio
-        recommendedProducts = catalogToUse.filter(p => 
-            p.family === 'Calderas' && 
-            (p.description?.toLowerCase().includes('doble servicio') ||
-             p.model.toLowerCase().includes('prima'))
-        );
+    // Mostrar el texto de la pregunta o respuesta
+    if (data.text) {
+        appendMessage('system', data.text);
     }
     
-    // Si no hay productos específicos, usar productos populares
-    if (recommendedProducts.length === 0) {
-        recommendedProducts = catalogToUse.filter(p => 
-            p.model.includes('Prima Tec Smart') || 
-            p.model.includes('Radiador Eléctrico Broen E') ||
-            p.model.includes('Caldera Diva')
-        );
+    // Mostrar opciones si existen
+    if (data.options && data.options.length > 0) {
+        console.log('[DEBUG] Mostrando opciones:', data.options);
+        renderExpertOptions(data.options);
     }
-    
-    // RECOMENDAR SOLO 1 PRODUCTO (el más adecuado)
-    const finalProducts = recommendedProducts.slice(0, 1);
-    
-    console.log('💡 Producto recomendado para', tipo, '(carga:', cargaTermica, 'W):', finalProducts.length);
-    
-    if (finalProducts.length > 0) {
-        renderProducts(finalProducts);
+    // Mostrar input numérico si es necesario
+    else if (data.input_type === 'number') {
+        console.log('[DEBUG] Mostrando input numérico');
+        createNumberInput(data);
+    }
+    // Mostrar inputs múltiples si es necesario
+    else if (data.input_type === 'multiple' && data.inputs) {
+        console.log('[DEBUG] Mostrando inputs múltiples:', data.inputs);
+        createMultipleInputs(data);
     } else {
-        console.error('❌ No se encontraron productos para recomendar');
+        console.log('[DEBUG] No se detectó qué mostrar. input_type:', data.input_type);
+    }
+    
+    // Si es final, volver al menú principal
+    if (data.is_final) {
+        setTimeout(() => {
+            // Volver al menú principal
+            inMainMenu = true;
+            hideBackButton();
+            renderOptions(['Guíame en un cálculo', 'Hacer una pregunta', 'Buscar productos'], false);
+        }, 500);
     }
 }
 
-/* Manejar respuestas del sistema experto */
-function handleExpertSystemResponse(option) {
-    if (conversationStep === 1) {
-        userInputs.tipo = option;
-        contextData.tipo = option;
-    } else if (conversationStep === 3) {
-        userInputs.zona = option;
-    } else if (conversationStep === 4) {
-        userInputs.aislacion = option;
+/* OBSOLETO - Ahora el backend hace los cálculos */
+
+/* OBSOLETO - Ahora el backend maneja las recomendaciones */
+
+/* Enviar respuesta al backend */
+async function sendExpertResponse(option_index = null, input_values = null) {
+    try {
+        const requestBody = {
+            conversation_id: expertConversationId,
+            option_index: option_index,
+            input_values: input_values || {}
+        };
+        
+        const response = await fetch('/reply', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody)
+        });
+        
+        const data = await response.json();
+        currentNodeData = data;
+        
+        // Mostrar el siguiente mensaje
+        displayNodeMessage(data);
+        
+    } catch (error) {
+        console.error('Error enviando respuesta:', error);
+        appendMessage('system', '❌ Error al procesar tu respuesta. Por favor, intenta de nuevo.');
     }
+}
+
+/* Renderizar opciones del sistema experto */
+function renderExpertOptions(options) {
+    const inputArea = document.getElementById('input-area');
+    inputArea.innerHTML = '';
+    const container = document.createElement('div');
+    container.className = 'space-y-2';
     
-    setTimeout(() => askQuestion(), 500);
+    options.forEach((option, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn w-full bg-blue-100 hover:bg-blue-200 text-blue-800 py-2 px-4 rounded';
+        btn.textContent = option;
+        btn.onclick = () => {
+            appendMessage('user', option);
+            inputArea.innerHTML = '';
+            sendExpertResponse(idx, null);
+        };
+        container.appendChild(btn);
+    });
+    
+    inputArea.appendChild(container);
+    inputArea.classList.remove('hidden');
+}
+
+/* Manejar respuestas del sistema experto (cuando se selecciona una opción) */
+function handleExpertSystemResponse(optionText) {
+    // Encontrar el índice de la opción seleccionada
+    const optionIndex = currentNodeData && currentNodeData.options ? 
+        currentNodeData.options.findIndex(opt => opt === optionText) : -1;
+    
+    if (optionIndex >= 0) {
+        sendExpertResponse(optionIndex, null);
+    }
 }
 
 /* Crear input numérico */
@@ -153,9 +160,10 @@ function createNumberInput(response) {
         e.preventDefault();
         const value = document.getElementById('input-value').value;
         if (value && parseFloat(value) > 0) {
-            userInputs.superficie = value;
-            appendMessage('user', value + ' m²');
-            setTimeout(() => askQuestion(), 500);
+            appendMessage('user', value);
+            inputArea.innerHTML = '';
+            // Enviar al backend
+            sendExpertResponse(null, { value: value });
         }
     };
     form.innerHTML = `
@@ -174,9 +182,8 @@ function createNumberInput(response) {
 
 /* Resetear sistema experto */
 function resetExpertSystem() {
-    conversationStep = 0;
-    userInputs = {};
-    contextData = {};
+    expertConversationId = null;
+    currentNodeData = null;
     updateContextPanel();
 }
 
@@ -185,7 +192,10 @@ function updateContextPanel() {
     const panel = document.getElementById('context-panel');
     const itemsContainer = document.getElementById('context-items');
     
-    if (Object.keys(contextData).length === 0) {
+    // Obtener variables del estado actual si existe
+    const variables = currentNodeData?.expert_state?.variables || {};
+    
+    if (Object.keys(variables).length === 0) {
         panel.classList.add('hidden');
         return;
     }
@@ -193,7 +203,7 @@ function updateContextPanel() {
     panel.classList.remove('hidden');
     itemsContainer.innerHTML = '';
 
-    for (const [key, value] of Object.entries(contextData)) {
+    for (const [key, value] of Object.entries(variables)) {
         if (!key.includes('_texto') && typeof value !== 'object') {
             const item = document.createElement('div');
             item.className = 'context-item';
@@ -201,4 +211,63 @@ function updateContextPanel() {
             itemsContainer.appendChild(item);
         }
     }
+}
+
+/* Crear inputs múltiples */
+function createMultipleInputs(response) {
+    const inputArea = document.getElementById('input-area');
+    inputArea.innerHTML = '';
+    
+    const form = document.createElement('form');
+    form.className = 'space-y-3';
+    
+    const inputs = response.inputs || [];
+    const inputElements = {};
+    
+    inputs.forEach(inputConfig => {
+        const inputGroup = document.createElement('div');
+        inputGroup.className = 'flex flex-col';
+        
+        const label = document.createElement('label');
+        label.textContent = inputConfig.label;
+        label.className = 'text-sm font-medium mb-1';
+        
+        const input = document.createElement('input');
+        input.type = inputConfig.type || 'number';
+        input.name = inputConfig.name;
+        input.className = 'px-3 py-2 border rounded-lg';
+        input.required = true;
+        input.step = '0.01';
+        input.min = '0';
+        
+        inputElements[inputConfig.name] = input;
+        
+        inputGroup.appendChild(label);
+        inputGroup.appendChild(input);
+        form.appendChild(inputGroup);
+    });
+    
+    const button = document.createElement('button');
+    button.type = 'submit';
+    button.textContent = 'Continuar';
+    button.className = 'bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 w-full';
+    form.appendChild(button);
+    
+    form.onsubmit = (e) => {
+        e.preventDefault();
+        const values = {};
+        
+        // Recoger todos los valores
+        for (const [name, inputEl] of Object.entries(inputElements)) {
+            values[name] = inputEl.value;
+            appendMessage('user', `${name}: ${inputEl.value}`);
+        }
+        
+        inputArea.innerHTML = '';
+        // Enviar al backend
+        sendExpertResponse(null, values);
+    };
+    
+    inputArea.appendChild(form);
+    inputArea.classList.remove('hidden');
 }

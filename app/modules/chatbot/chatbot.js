@@ -1,47 +1,29 @@
-/* Configuración Ollama */
+/* Variables del chatbot */
+let chatConversationId = null;
+let chatHistory = [];
+
+/* Variables obsoletas para compatibilidad con código viejo */
 const OLLAMA_URL = 'http://localhost:11434/api/chat';
 const OLLAMA_MODEL = 'llama3.2:3b';
 const conversationHistory = [];
-const MAX_HISTORY_LENGTH = 10; // Mantener últimos 10 mensajes para no saturar el contexto
-let conversationContext = ''; // Resumen del contexto de la conversación
-let waitingForCity = false; // Estado para saber si estamos esperando que el usuario elija ciudad
-let selectedProductForConsult = null; // Producto elegido para consulta comercial
-let peisaProductsFromJSON = []; // Catálogo cargado desde JSON
-
-/* Cargar catálogo desde JSON */
-async function loadProductCatalog() {
-    try {
-        // Ruta relativa desde app/soldasur2025.html hacia data/products_catalog.json
-        const response = await fetch('../data/products_catalog.json');
-        if (!response.ok) throw new Error('Error cargando catálogo');
-        peisaProductsFromJSON = await response.json();
-        console.log(`✅ Catálogo cargado: ${peisaProductsFromJSON.length} productos con información completa`);
-    } catch (error) {
-        console.error('❌ Error cargando catálogo:', error);
-        console.error('   Asegurate de que el archivo data/products_catalog.json existe');
-        console.error('   Ejecutá: python app/modules/scraping/product_scraper.py');
-        peisaProductsFromJSON = [];
-    }
-}
-
-// Cargar catálogo al iniciar
-loadProductCatalog();
+const MAX_HISTORY_LENGTH = 10;
+let conversationContext = '';
+let peisaProductsFromJSON = [];
 
 /* Iniciar modo chatbot */
 function startChatbot() {
-    if (conversationHistory.length > 0) {
-        appendMessage('system', '¡Continuemos! ¿Qué más necesitas saber?');
-    } else {
-        appendMessage('system', '¿Qué necesitas saber?');
-    }
+    // Generar nuevo ID de conversación
+    chatConversationId = 'chat_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    chatHistory = [];
+    
+    appendMessage('system', '¡Hola! Soy Soldy, tu asesor de PEISA. ¿Qué necesitas saber sobre calefacción?');
     showChatInput();
 }
 
 /* Resetear historial de conversación */
 function resetChatHistory() {
-    conversationHistory.length = 0;
-    conversationContext = '';
-    waitingForCity = false;
+    chatHistory = [];
+    chatConversationId = null;
 }
 
 /* Mostrar información de contacto según la ciudad */
@@ -145,101 +127,115 @@ async function handleChatInput() {
     const input = document.getElementById('chat-input');
     const question = input.value.trim();
     
-    if (question) {
-        appendMessage('user', question);
-        input.value = '';
+    if (!question) return;
+    
+    appendMessage('user', question);
+    input.value = '';
+    
+    showLoadingIndicator();
+    
+    try {
+        // Enviar pregunta al backend con RAG (con timeout de 30 segundos)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos
         
-        // Interceptar consultas de refrigeración (fuera del catálogo)
-        if (isCoolingQuestion(question)) {
-            appendMessage('system', 'Disculpá, no vendemos equipos de refrigeración o aire acondicionado. Nos especializamos en calefacción y agua caliente. ¿Te puedo ayudar con algo de eso?');
-            showChatInput();
-            return;
+        const response = await fetch('/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                question: question,
+                conversation_id: chatConversationId
+            }),
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+            throw new Error(`Error del servidor: ${response.status}`);
         }
         
-        // NO interceptar consultas de precio - dejar que Ollama las maneje con contexto
-        // El system prompt ya tiene instrucciones para manejar precios
+        const data = await response.json();
         
-        // Detectar si el usuario está respondiendo con una ciudad
-        if (waitingForCity && (question.toLowerCase().includes('río grande') || question.toLowerCase().includes('rio grande') || question.toLowerCase().includes('rg'))) {
-            showContactInfo('riogrande');
-            waitingForCity = false;
-            showChatInput();
-            return;
-        } else if (waitingForCity && (question.toLowerCase().includes('ushuaia') || question.toLowerCase().includes('ush'))) {
-            showContactInfo('ushuaia');
-            waitingForCity = false;
-            showChatInput();
-            return;
+        // Guardar respuesta en el historial
+        chatHistory.push({
+            question: question,
+            answer: data.answer,
+            products: data.products
+        });
+        
+        hideLoadingIndicator();
+        
+        // Mostrar respuesta del chatbot
+        appendMessage('system', data.answer);
+        
+        // Si hay productos, mostrarlos
+        if (data.products && data.products.length > 0) {
+            displayChatProducts(data.products);
         }
         
-        showLoadingIndicator();
+        showChatInput();
         
-        try {
-            const response = await callOllama(question);
-            hideLoadingIndicator();
-            
-            // Limpiar y mostrar mensaje humanizado
-            const cleanMessage = cleanHtmlFromMessage(response.message);
-            appendMessage('system', cleanMessage);
-            
-            // Detectar si la respuesta pregunta por la ciudad y mostrar botones
-            if (response.message.toLowerCase().includes('río grande o ushuaia') || 
-                response.message.toLowerCase().includes('rio grande o ushuaia')) {
-                waitingForCity = true;
-                
-                // Mostrar botones de ciudad
-                setTimeout(() => {
-                    const chatContainer = document.getElementById('chat-container');
-                    const buttonsDiv = document.createElement('div');
-                    buttonsDiv.className = 'fade-in mt-2 flex gap-2';
-                    
-                    const btnRG = document.createElement('button');
-                    btnRG.className = 'text-sm px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors';
-                    btnRG.textContent = 'Río Grande';
-                    btnRG.onclick = () => { 
-                        appendMessage('user', 'Río Grande');
-                        showContactInfo('riogrande'); 
-                        waitingForCity = false; 
-                        showChatInput(); 
-                    };
-                    
-                    const btnUsh = document.createElement('button');
-                    btnUsh.className = 'text-sm px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors';
-                    btnUsh.textContent = 'Ushuaia';
-                    btnUsh.onclick = () => { 
-                        appendMessage('user', 'Ushuaia');
-                        showContactInfo('ushuaia'); 
-                        waitingForCity = false; 
-                        showChatInput(); 
-                    };
-                    
-                    buttonsDiv.appendChild(btnRG);
-                    buttonsDiv.appendChild(btnUsh);
-                    chatContainer.appendChild(buttonsDiv);
-                    scrollToBottom();
-                }, 300);
-            }
-            
-            // Si Ollama recomienda productos, mostrarlos
-            if (response.products && response.products.length > 0) {
-                setTimeout(() => {
-                    renderProducts(response.products);
-                }, 300);
-            }
-            
-            // Volver a mostrar el input
-            showChatInput();
-        } catch (error) {
-            hideLoadingIndicator();
-            appendMessage('system', 'Lo siento, hubo un error al procesar tu consulta. Por favor, intenta nuevamente.');
-            showChatInput();
-        }
+    } catch (error) {
+        console.error('[ERROR] Error en chatbot:', error);
+        hideLoadingIndicator();
+        appendMessage('system', '❌ Lo siento, hubo un error al procesar tu consulta. Por favor, intenta nuevamente.');
+        showChatInput();
     }
 }
 
+/* Mostrar productos del chatbot */
+function displayChatProducts(products) {
+    if (!products || products.length === 0) return;
+    
+    const chatContainer = document.getElementById('chat-container');
+    const productsDiv = document.createElement('div');
+    productsDiv.className = 'fade-in mt-3 space-y-2';
+    
+    products.forEach(product => {
+        const card = document.createElement('div');
+        card.className = 'bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition';
+        
+        let html = `
+            <div class="font-semibold text-blue-800">${product.model || 'Producto'}</div>
+            <div class="text-sm text-gray-600">${product.family || ''}</div>
+        `;
+        
+        if (product.power) {
+            html += `<div class="text-sm">⚡ ${product.power} W</div>`;
+        }
+        
+        if (product.description) {
+            html += `<div class="text-sm text-gray-700 mt-1">${product.description}</div>`;
+        }
+        
+        card.innerHTML = html;
+        productsDiv.appendChild(card);
+    });
+    
+    chatContainer.appendChild(productsDiv);
+    scrollToBottom();
+}
+
+/* ============================================
+   FUNCIONES OBSOLETAS - NO USADAS
+   (Se mantienen para no romper referencias pero no se ejecutan)
+   ============================================ */
+
 /* Filtrar productos relevantes según la consulta */
 function filterRelevantProducts(userMessage, catalog) {
-    const msg = userMessage.toLowerCase();
+    // OBSOLETO - Ya no se usa
+    return [];
+}
+
+async function callOllama(userMessage) {
+    // OBSOLETO - Ahora se usa el backend /chat
+    throw new Error('Función obsoleta - usar endpoint /chat del backend');
+}
+
+/* Funciones auxiliares obsoletas pero mantenidas para compatibilidad */
+function isCoolingQuestion(question) {
+    const msg = question.toLowerCase();
     let relevantProducts = [];
     
     // Detectar tipo de necesidad
@@ -298,7 +294,13 @@ function filterRelevantProducts(userMessage, catalog) {
     return relevantProducts.slice(0, 5);
 }
 
-/* Llamar a la API de Ollama */
+/* OBSOLETO - NO SE USA - Se mantiene solo para evitar errores de referencia */
+async function callOllama_OBSOLETO(userMessage) {
+    console.warn('[OBSOLETO] Esta función ya no se usa. Se usa /chat del backend');
+    return { message: 'Error: función obsoleta', products: [] };
+}
+
+/* OBSOLETO - Código viejo de Ollama que ya no se ejecuta */
 async function callOllama(userMessage) {
     // Usar el catálogo JSON actualizado (con descripciones completas, ventajas y características)
     const catalogToUse = peisaProductsFromJSON;
