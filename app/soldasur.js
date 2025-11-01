@@ -138,24 +138,25 @@ function startConversation() {
 function handleOptionClick(option) {
     appendMessage('user', option);
     
-    // Categorías de productos (dinámicas del catálogo)
-    const productCategories = [...new Set(productCatalog.map(p => p.family))].filter(Boolean);
-    
-    if (productCategories.includes(option)) {
-        showProductsByCategory(option);
-        return;
-    }
-    
-    // Navegación de catálogo
-    if (option === 'Ver todos') {
-        showAllProducts();
-        return;
-    } else if (option === 'Ver otras categorías' || option === 'Ver por categoría') {
-        showCategoryMenu();
-        return;
-    } else if (option === 'Volver al inicio') {
-        goBack();
-        return;
+    // Navegación de catálogo (solo si no estamos en el sistema experto)
+    if (conversationStep === 0) {
+        const productCategories = [...new Set(productCatalog.map(p => p.family))].filter(Boolean);
+        
+        if (productCategories.includes(option)) {
+            showProductsByCategory(option);
+            return;
+        }
+        
+        if (option === 'Ver todos') {
+            showAllProducts();
+            return;
+        } else if (option === 'Ver otras categorías' || option === 'Ver por categoría') {
+            showCategoryMenu();
+            return;
+        } else if (option === 'Volver al inicio') {
+            goBack();
+            return;
+        }
     }
     
     // Opciones iniciales del menú principal
@@ -174,7 +175,7 @@ function handleOptionClick(option) {
     }
     
     // Respuestas del sistema experto
-    if (conversationStep >= 1 && conversationStep <= 4) {
+    if (conversationStep >= 1 && conversationStep <= 8) {
         handleExpertSystemResponse(option);
         return;
     }
