@@ -138,24 +138,25 @@ function startConversation() {
 function handleOptionClick(option) {
     appendMessage('user', option);
     
-    // Categorías de productos (dinámicas del catálogo)
-    const productCategories = [...new Set(productCatalog.map(p => p.family))].filter(Boolean);
-    
-    if (productCategories.includes(option)) {
-        showProductsByCategory(option);
-        return;
-    }
-    
-    // Navegación de catálogo
-    if (option === 'Ver todos') {
-        showAllProducts();
-        return;
-    } else if (option === 'Ver otras categorías' || option === 'Ver por categoría') {
-        showCategoryMenu();
-        return;
-    } else if (option === 'Volver al inicio') {
-        goBack();
-        return;
+    // Navegación de catálogo (solo si no estamos en el sistema experto)
+    if (conversationStep === 0) {
+        const productCategories = [...new Set(productCatalog.map(p => p.family))].filter(Boolean);
+        
+        if (productCategories.includes(option)) {
+            showProductsByCategory(option);
+            return;
+        }
+        
+        if (option === 'Ver todos') {
+            showAllProducts();
+            return;
+        } else if (option === 'Ver otras categorías' || option === 'Ver por categoría') {
+            showCategoryMenu();
+            return;
+        } else if (option === 'Volver al inicio') {
+            goBack();
+            return;
+        }
     }
     
     // Opciones iniciales del menú principal
@@ -173,19 +174,22 @@ function handleOptionClick(option) {
         return;
     }
     
-    // Respuestas del sistema experto
-    if (conversationStep >= 1 && conversationStep <= 4) {
-        handleExpertSystemResponse(option);
-        return;
-    }
-    
-    // Opciones post-cálculo
-    if (option === 'Nuevo cálculo' || option.includes('Hacer un cálculo')) {
+    // Opciones post-cálculo (manejar antes para no ser interceptadas por el flujo experto)
+    if (option === 'Nuevo cálculo') {
+        // Reiniciar estado y volver a iniciar el sistema experto de inmediato
         resetExpertSystem();
-        appendMessage('system', '¡Perfecto! Iniciemos un nuevo cálculo.');
+        showBackButton();
         startExpertSystem();
+        return;
     } else if (option === 'Hacer una pregunta' || option.includes('pregunta')) {
         startChatbot();
+        return;
+    }
+
+    // Respuestas del sistema experto
+    if (conversationStep >= 1 && conversationStep <= 8) {
+        handleExpertSystemResponse(option);
+        return;
     }
 }
 

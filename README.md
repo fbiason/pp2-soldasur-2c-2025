@@ -61,7 +61,7 @@ Cada sprint incluirá:
 
 ---
 
-## 🏃 Inicio Rápido (Versión Standalone)
+## 🏃 Inicio Rápido
 
 ### Requisitos
 1. **Instalar Ollama:** https://ollama.ai
@@ -91,81 +91,79 @@ python -m http.server 8000
 
 ---
 
-## 📚 Documentación
-
-### Chatbot Soldy
-- **[📖 Documentación Completa del Chatbot](docs/CHATBOT_SOLDY.md)** - Arquitectura, funcionamiento y configuración
-- **[📊 Cómo Evaluar el Chatbot](docs/COMO_EVALUAR_CHATBOT.md)** - Sistema de métricas y evaluación
-- **[📝 Plantilla de Evaluación](docs/evaluacion_chatbot.md)** - Evaluación manual
-
-### Guías Técnicas
-- **[🚀 Quick Start](docs/QUICKSTART.md)** - Inicio rápido
-- **[🔧 Sistema Experto](docs/SISTEMA_EXPERTO.md)** - Motor de reglas
-- **[📦 Módulos](docs/README_MODULOS.md)** - Estructura modular
-- **[🐍 Entorno Virtual](docs/ENTORNO_VIRTUAL.md)** - Configuración de Python
-
----
-
 ## Objetivo del proyecto  
 
 Desarrollar un **chatbot basado en IA** que pueda:  
 - Responder consultas frecuentes sobre sistemas de calefacción.  
 - Brindar asistencia técnica personalizada.  
-- Sugerir soluciones o recomendaciones según el tipo de instalación o problema reportado.  
+- Sugerir soluciones o recomendaciones según el tipo de instalación o problema reportado. 
 - Integrarse con bases de conocimiento y flujos conversacionales adaptativos.  
 
----
+--
 
 ## Estructura del proyecto  
 
 
+```
+├── LICENSE
+├── Makefile
+├── README.md
+├── requirements.txt
+├── app/
+│   ├── app.py
+│   ├── main.py
+│   ├── models.py
+│   ├── orchestrator.py
+│   ├── soldasur2025.html
+│   ├── soldasur.js
+│   ├── soldasur.css
+│   ├── peisa_advisor_knowledge_base.json
+│   ├── img/
+│   ├── modules/
+│   │   ├── chatbot/
+│   │   │   ├── llm_wrapper.py
+│   │   │   ├── rag_engine_v2.py
+│   │   │   └── models/
+│   │   ├── expert_system/
+│   │   ├── expertSystem/
+│   │   │   ├── expert_engine.py
+│   │   │   ├── expertSystem.js
+│   │   │   ├── models.py
+│   │   │   └── product_loader.py
+│   │   └── scraping/
+│   │       ├── inspect_peisa.py
+│   │       └── product_scraper.py
+├── configs/
+│   └── params.yaml
+├── data/
+│   └── products_catalog.json
+├── docs/
+├── embeddings/
+│   └── products.faiss
+├── images/
+├── ingest/
+│   └── ingest.py
+├── models/
+├── notebooks/
+│   └── exploration.ipynb
+├── query/
+│   └── query.py
+├── scripts/
+│   └── test_embeddings.py
+├── tests/
+```
 
-    ├── LICENSE
-    ├── Makefile           <- Makefile with commands like `make data` or `make train`
-    ├── README.md          <- The top-level README for developers using this project.
-    ├── data
-    │   ├── external       <- Data from third party sources.
-    │   ├── interim        <- Intermediate data that has been transformed.
-    │   ├── processed      <- The final, canonical data sets for modeling.
-    │   └── raw            <- The original, immutable data dump.
-    │
-    ├── docs               <- A default Sphinx project; see sphinx-doc.org for details
-    │
-    ├── models             <- Trained and serialized models, model predictions, or model summaries
-    │
-    ├── notebooks          <- Jupyter notebooks. Naming convention is a number (for ordering),
-    │                         the creator's initials, and a short `-` delimited description, e.g.
-    │                         `1.0-jqp-initial-data-exploration`.
-    │
-    ├── references         <- Data dictionaries, manuals, and all other explanatory materials.
-    │
-    ├── reports            <- Generated analysis as HTML, PDF, LaTeX, etc.
-    │   └── figures        <- Generated graphics and figures to be used in reporting
-    │
-    ├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
-    │                         generated with `pip freeze > requirements.txt`
-    │
-    ├── setup.py           <- makes project pip installable (pip install -e .) so src can be imported
-    ├── src                <- Source code for use in this project.
-    │   ├── __init__.py    <- Makes src a Python module
-    │   │
-    │   ├── data           <- Scripts to download or generate data
-    │   │   └── make_dataset.py
-    │   │
-    │   ├── features       <- Scripts to turn raw data into features for modeling
-    │   │   └── build_features.py
-    │   │
-    │   ├── models         <- Scripts to train models and then use trained models to make
-    │   │   │                 predictions
-    │   │   ├── predict_model.py
-    │   │   └── train_model.py
-    │   │
-    │   └── visualization  <- Scripts to create exploratory and results oriented visualizations
-    │       └── visualize.py
-    │
-    └── tox.ini            <- tox file with settings for running tox; see tox.readthedocs.io
+## Propuestas de Escalabilidad
+
+Para potenciar el crecimiento y la robustez del sistema SoldaSur, se proponen las siguientes estrategias de escalabilidad y optimización:
+
+- **Velocidad de respuesdtas:** Optimizar la velocidad de respuestas del Chatbot. 
+- **Almacenamiento y análisis de datos de consultas:** Registrar las interacciones y consultas de los usuarios para su posterior análisis, permitiendo la implementación de campañas de email marketing, remarketing y segmentación avanzada de clientes.
+- **Autenticación y personalización:** Incorporar mecanismos de inicio de sesión para personalizar la experiencia de compra, ofrecer recomendaciones basadas en el historial y facilitar la gestión de usuarios.
+- **Asistente en el proceso de compra:** Integrar el chatbot con el flujo de checkout, guiando al usuario y mostrando imágenes, videos o tutoriales sobre el uso e instalación de productos.
+- **Base de datos dinámica de productos consultados:** Desarrollar una base de datos que registre los productos más consultados (inicialmente calderas y radiadores), sirviendo como fuente para optimizaciones, análisis de demanda y gestión de inventario.
+- **Sistema de feedback automático:** Permitir que los usuarios califiquen las respuestas del chatbot y del sistema experto, utilizando estos datos para mejorar los modelos y la base de conocimiento.
+- **Motor de recomendaciones avanzado:** Implementar algoritmos de machine learning para sugerir productos complementarios, promociones personalizadas y anticipar necesidades del cliente.
 
 
---------
-
-<p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
+---
