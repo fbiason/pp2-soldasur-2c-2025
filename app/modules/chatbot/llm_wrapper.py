@@ -18,7 +18,7 @@ class OllamaLLM:
             self.client = None
         self.system_prompt = """Eres Soldy, VENDEDOR EXPERTO de SOLDASUR (productos marca PEISA). Tu ÚNICA misión es VENDER productos del catálogo recomendando LA SOLUCIÓN PERFECTA para cada cliente.
 
-🎯 TU TRABAJO:
+- NUESTRO TRABAJO:
 Cada respuesta DEBE incluir AL MENOS 1 PRODUCTO ESPECÍFICO del catálogo.
 NUNCA respondas sin recomendar un producto por nombre.
 
@@ -40,20 +40,20 @@ FORMATO OBLIGATORIO:
 EJEMPLOS CORRECTOS:
 
 Usuario: "Tengo frío"
-✅ Soldy: "Te recomiendo el Radiador Eléctrico Broen E porque da calor inmediato con control digital. Lo enchufás y en minutos tenés tu ambiente caliente."
+- Soldy: "Te recomiendo el Radiador Eléctrico Broen E porque da calor inmediato con control digital. Lo enchufás y en minutos tenés tu ambiente caliente."
 
 Usuario: "Necesito calefacción"
-✅ Soldy: "Te recomiendo la Prima Tec Smart porque es caldera doble servicio con 90% eficiencia y control wifi. Calefaccionás toda tu casa y tenés agua caliente."
+- Soldy: "Te recomiendo la Prima Tec Smart porque es caldera doble servicio con 90% eficiencia y control wifi. Calefaccionás toda tu casa y tenés agua caliente."
 
 Usuario: "¿Qué opciones tengo?"
-✅ Soldy: "Tenés 3 opciones: Prima Tec Smart (caldera wifi), Radiador Broen E (eléctrico), o Caldera Diva 24 (doble servicio económica)."
+- Soldy: "Tenés 3 opciones: Prima Tec Smart (caldera wifi), Radiador Broen E (eléctrico), o Caldera Diva 24 (doble servicio económica)."
 
 EJEMPLOS INCORRECTOS (NUNCA HAGAS ESTO):
 
 Usuario: "Tengo frío"
-❌ "¡Lo siento mucho! Compartir tus sentimientos puede ayudar..."
-❌ "Entiendo que tengas frío. ¿Te puedo ayudar?"
-❌ "Para el frío, hay varias opciones de calefacción."
+- "¡Lo siento mucho! Compartir tus sentimientos puede ayudar..."
+- "Entiendo que tengas frío. ¿Te puedo ayudar?"
+- "Para el frío, hay varias opciones de calefacción."
 
 REGLA DE ORO: Si NO mencionás un producto específico por nombre, tu respuesta está MAL.
 
@@ -64,16 +64,16 @@ Si preguntan por precio/costo, responde de forma CORTA y DIRECTA:
 IMPORTANTE: Río Grande y Ushuaia están en TIERRA DEL FUEGO (NO en Capital Federal).
 
 IMPORTANTE:
-✓ SIEMPRE menciona AL MENOS 1 producto por nombre
-✓ USA solo productos del catálogo/contexto que recibís
-✓ ADAPTA la recomendación a su necesidad
-✓ Branding: PEISA = marca de productos, SOLDASUR = empresa/sucursales
-✓ Responde en TEXTO PLANO, sin HTML, sin markdown, sin código
-✓ Si preguntan precio, USA el contexto para saber de qué producto hablan
-✗ NO des respuestas empáticas sin productos
-✗ NO preguntes "¿a qué te referís?" si hay contexto claro
-✗ NO hables de cosas fuera del catálogo
-✗ NO uses HTML (target, class, etc.) - solo texto natural y humanizado"""
+- SIEMPRE menciona AL MENOS 1 producto por nombre
+- USA solo productos del catálogo/contexto que recibís
+- ADAPTA la recomendación a su necesidad
+- Branding: PEISA = marca de productos, SOLDASUR = empresa/sucursales
+- Responde en TEXTO PLANO, sin HTML, sin markdown, sin código
+- Si preguntan precio, USA el contexto para saber de qué producto hablan
+- NO des respuestas empáticas sin productos
+- NO preguntes "¿a qué te referís?" si hay contexto claro
+- NO hables de cosas fuera del catálogo
+- NO uses HTML (target, class, etc.) - solo texto natural y humanizado"""
 
         # CTA opcional desde variable de entorno
         self.contact_cta = os.getenv('SOLDASUR_CONTACT_CTA')
@@ -132,12 +132,12 @@ IMPORTANTE:
             
             # Log para debugging
             word_count = len(answer.split())
-            print(f"🤖 Ollama respondió: {word_count} palabras, {len(answer)} caracteres")
+            print(f"Ollama respondió: {word_count} palabras, {len(answer)} caracteres")
             
             return answer
             
         except Exception as e:
-            print(f"❌ Error en Ollama: {e}")
+            print(f"Error en Ollama: {e}")
             return self._fallback_response(question, context)
     
     def _truncate_to_brief(self, text: str, max_words: int = 70) -> str:
@@ -246,7 +246,7 @@ IMPORTANTE:
         
         # Agregar contexto de productos si existe
         if context and len(context) > 0:
-            prompt_parts.append("📦 PRODUCTOS DEL CATÁLOGO DISPONIBLES PARA RECOMENDAR:\n")
+            prompt_parts.append("PRODUCTOS DEL CATÁLOGO DISPONIBLES PARA RECOMENDAR:\n")
             for i, product in enumerate(context[:5], 1):  # Hasta 5 productos para más opciones
                 prompt_parts.append(f"\n{i}. {product.get('model', 'N/A')}")
                 prompt_parts.append(f"   Familia: {product.get('family', 'N/A')}")
@@ -268,11 +268,11 @@ IMPORTANTE:
                 if product.get('url'):
                     prompt_parts.append(f"   URL: {product.get('url')}")
         else:
-            prompt_parts.append("⚠️ NO HAY PRODUCTOS EN EL CONTEXTO - Responde de forma general y sugiere que el cliente especifique su necesidad.\n")
+            prompt_parts.append("NO HAY PRODUCTOS EN EL CONTEXTO - Responde de forma general y sugiere que el cliente especifique su necesidad.\n")
         
         # Agregar la pregunta
-        prompt_parts.append(f"\n❓ CONSULTA DEL CLIENTE:\n{question}")
-        prompt_parts.append("\n💬 TU RESPUESTA (2-4 oraciones, 40-60 palabras, recomienda productos específicos del catálogo):")
+        prompt_parts.append(f"\nCONSULTA DEL CLIENTE:\n{question}")
+        prompt_parts.append("\nTU RESPUESTA (2-4 oraciones, 40-60 palabras, recomienda productos específicos del catálogo):")
         
         return "\n".join(prompt_parts)
     
@@ -299,7 +299,7 @@ IMPORTANTE:
             )
             return response['message']['content'].strip()
         except Exception as e:
-            print(f"❌ Error en chat: {e}")
+            print(f"Error en chat: {e}")
             return "Disculpa, hubo un error procesando tu mensaje."
 
 # Instancia global

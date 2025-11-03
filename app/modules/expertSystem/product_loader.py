@@ -36,7 +36,7 @@ class ProductLoader:
         """Carga los productos desde el archivo Excel"""
         try:
             self.products_df = pd.read_excel(self.excel_path)
-            print(f"✓ Cargados {len(self.products_df)} productos desde {self.excel_path}")
+            print(f"Cargados {len(self.products_df)} productos desde {self.excel_path}")
             
             # Procesar productos por categoría
             self._process_radiators()
@@ -54,7 +54,7 @@ class ProductLoader:
             csv_path = Path("data/processed/products_mock.csv")
             if csv_path.exists():
                 self.products_df = pd.read_csv(csv_path)
-                print(f"✓ Cargados {len(self.products_df)} productos desde CSV fallback")
+                print(f"Cargados {len(self.products_df)} productos desde CSV fallback")
                 self._process_radiators()
                 self._process_boilers()
                 self._process_floor_heating()
@@ -323,7 +323,7 @@ class ProductLoader:
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(catalog, f, indent=2, ensure_ascii=False)
         
-        print(f"✓ Catálogo exportado a {output_path}")
+        print(f"Catálogo exportado a {output_path}")
 
 
 # Instancia global del cargador

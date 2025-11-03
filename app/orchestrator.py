@@ -319,7 +319,7 @@ class ConversationOrchestrator:
         
         # Agregar metadatos de modo
         result['mode'] = ConversationMode.EXPERT.value
-        result['mode_label'] = '🤖 Modo Experto'
+        result['mode_label'] = 'Modo Experto'
         
         return result
     
@@ -340,12 +340,12 @@ class ConversationOrchestrator:
         if self._should_suggest_guided_flow(message):
             result['suggestion'] = {
                 'type': 'switch_to_expert',
-                'message': '💡 ¿Quieres que te guíe en un cálculo preciso paso a paso?'
+                'message': '¿Querés que te guíe en un cálculo preciso paso a paso?'
             }
         
         # Agregar metadatos de modo
         result['mode'] = ConversationMode.RAG.value
-        result['mode_label'] = '💬 Modo Chat'
+        result['mode_label'] = 'Modo Chat'
         
         return result
     
@@ -354,7 +354,7 @@ class ConversationOrchestrator:
         # Usar el RAG para búsqueda de productos
         result = await self.rag_engine.search_products(message)
         result['mode'] = ConversationMode.RAG.value
-        result['mode_label'] = '🔍 Búsqueda de Productos'
+        result['mode_label'] = 'Búsqueda de Productos'
         return result
     
     async def _handle_clarification(self, conversation_id: str, message: str) -> Dict[str, Any]:
@@ -370,11 +370,11 @@ class ConversationOrchestrator:
         # Agregar opción para continuar
         result['clarification_mode'] = True
         result['continue_option'] = {
-            'text': '✓ Continuar con el cálculo',
+            'text': 'Continuar con el cálculo',
             'action': 'resume_expert'
         }
         result['mode'] = ConversationMode.HYBRID.value
-        result['mode_label'] = '⚡ Aclaración'
+        result['mode_label'] = 'Aclaración'
         
         return result
     
@@ -394,7 +394,7 @@ class ConversationOrchestrator:
             return {
                 'type': 'mode_switch',
                 'mode': ConversationMode.RAG.value,
-                'mode_label': '💬 Modo Chat',
+                'mode_label': 'Modo Chat',
                 'text': 'Perfecto, ahora puedes hacerme cualquier pregunta sobre calefacción.',
                 'is_final': False
             }
@@ -402,7 +402,7 @@ class ConversationOrchestrator:
         return {
             'type': 'mode_switch',
             'mode': ConversationMode.HYBRID.value,
-            'mode_label': '⚡ Modo Híbrido',
+            'mode_label': 'Modo Híbrido',
             'text': 'Modo híbrido activado. Puedo guiarte o responder preguntas libremente.',
             'is_final': False
         }
@@ -422,7 +422,7 @@ class ConversationOrchestrator:
         # Fusionar respuestas
         merged_result = self._merge_responses(rag_result, expert_suggestion)
         merged_result['mode'] = ConversationMode.HYBRID.value
-        merged_result['mode_label'] = '⚡ Modo Híbrido'
+        merged_result['mode_label'] = 'Modo Híbrido'
         
         return merged_result
     

@@ -20,26 +20,26 @@ class RAGEngineV2:
     
     def __init__(self, catalog_path: str = "data/products_catalog.json"):
         """Inicializa el motor RAG"""
-        print("🚀 Inicializando RAG Engine V2...")
+        print("Inicializando RAG Engine V2...")
         
         # Cargar catálogo de productos
         self.products = self._load_catalog(catalog_path)
-        print(f"  ✅ Catálogo cargado: {len(self.products)} productos")
+        print(f"  Catálogo cargado: {len(self.products)} productos")
         
         # Inicializar modelo de embeddings
-        print("  🔄 Cargando modelo de embeddings...")
+        print("  Cargando modelo de embeddings...")
         self.embedding_model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
-        print("  ✅ Modelo de embeddings listo")
+        print("  Modelo de embeddings listo")
         
         # Crear índice FAISS
-        print("  🔄 Creando índice vectorial...")
+        print("  Creando índice vectorial...")
         self.index, self.product_texts = self._create_index()
-        print("  ✅ Índice FAISS creado")
+        print("  Índice FAISS creado")
         
         # Referencia al motor experto (se inyecta después)
         self.expert_engine = None
         
-        print("✅ RAG Engine V2 inicializado correctamente\n")
+        print("RAG Engine V2 inicializado correctamente\n")
     
     def _load_catalog(self, catalog_path: str) -> List[Dict]:
         """Carga el catálogo de productos"""
@@ -48,10 +48,10 @@ class RAGEngineV2:
                 with open(catalog_path, 'r', encoding='utf-8') as f:
                     return json.load(f)
             else:
-                print(f"  ⚠️  Archivo {catalog_path} no encontrado, usando catálogo por defecto")
+                print(f"  Archivo {catalog_path} no encontrado, usando catálogo por defecto")
                 return get_products_catalog()
         except Exception as e:
-            print(f"  ⚠️  Error cargando catálogo: {e}")
+            print(f"  Error cargando catálogo: {e}")
             return get_products_catalog()
     
     def _create_index(self):
@@ -98,7 +98,7 @@ class RAGEngineV2:
     def set_expert_engine(self, expert_engine):
         """Inyecta el motor experto para enriquecimiento mutuo"""
         self.expert_engine = expert_engine
-        print("🔗 Expert Engine conectado al RAG")
+        print("Expert Engine conectado al RAG")
     
     async def query(self, question: str, expert_context: Optional[Dict[str, Any]] = None, top_k: int = 3) -> Dict[str, Any]:
         """
@@ -112,16 +112,16 @@ class RAGEngineV2:
         Returns:
             Diccionario con respuesta y metadatos
         """
-        print(f"\n🔍 RAG Query: '{question[:50]}...'")
+        print(f"\nRAG Query: '{question[:50]}...'")
         
         # 1. Búsqueda vectorial
         relevant_products = self.search_products(question, top_k)
-        print(f"  📦 Encontrados {len(relevant_products)} productos relevantes")
+        print(f"  Encontrados {len(relevant_products)} productos relevantes")
         
         # 2. Filtrar por contexto experto si existe
         if expert_context:
             relevant_products = self._filter_by_expert_context(relevant_products, expert_context)
-            print(f"  🎯 Filtrados por contexto: {len(relevant_products)} productos")
+            print(f"  Filtrados por contexto: {len(relevant_products)} productos")
         
         # 3. Generar respuesta con Ollama Mistral
         answer = llm.generate(question, relevant_products)
@@ -224,5 +224,5 @@ class RAGEngineV2:
 try:
     rag_engine_v2 = RAGEngineV2()
 except Exception as e:
-    print(f"⚠️  Error inicializando RAG Engine V2: {e}")
+    print(f"Error inicializando RAG Engine V2: {e}")
     rag_engine_v2 = None

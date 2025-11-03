@@ -18,4 +18,4 @@ def reload_models():
     loader = get_product_loader()
     loader.load_products()
     RADIATOR_MODELS = loader.get_radiators_dict()
-    print(f"✓ Modelos recargados: {len(RADIATOR_MODELS)} radiadores")
+    print(f"Modelos recargados: {len(RADIATOR_MODELS)} radiadores")

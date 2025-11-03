@@ -430,25 +430,25 @@ def format_radiator_recommendations(model: Dict[str, Any],
         
         # Formatear recomendación
         result = [
-            f"✅ PRODUCTO RECOMENDADO: {model_name}",
+            f"PRODUCTO RECOMENDADO: {model_name}",
             f"",
-            f"📋 Descripción:",
+            f"Descripción:",
             f"{description}",
             f"",
-            f"⚡ Potencia requerida: {power_kcal:.0f} kcal/h",
+            f"Potencia requerida: {power_kcal:.0f} kcal/h",
         ]
         
         # Agregar características técnicas si existen
         if 'technical_features' in model and model['technical_features']:
             result.append("")
-            result.append("🔧 Características técnicas:")
+            result.append("Características técnicas:")
             for feature in model['technical_features'][:3]:  # Mostrar solo las primeras 3
                 result.append(f"  • {feature}")
         
         # Agregar URL si existe
         if url:
             result.append("")
-            result.append(f"🔗 Más información: {url}")
+            result.append(f"Más información: {url}")
         
         return "\n".join(result)
         
@@ -745,29 +745,29 @@ def format_towel_rack_recommendation(model: Dict[str, Any]) -> str:
         url = model.get('url', '')
         
         result = [
-            f"✅ TOALLERO RECOMENDADO: {model_name}",
+            f"TOALLERO RECOMENDADO: {model_name}",
             f"",
-            f"📋 Descripción:",
+            f"Descripción:",
             f"{description}",
         ]
         
         # Agregar características técnicas si existen
         if 'technical_features' in model and model['technical_features']:
             result.append("")
-            result.append("🔧 Características técnicas:")
+            result.append("Características técnicas:")
             for feature in model['technical_features'][:3]:
                 result.append(f"  • {feature}")
         
         # Agregar ventajas si existen
         if 'advantages' in model and model['advantages']:
             result.append("")
-            result.append("✨ Ventajas:")
+            result.append("Ventajas:")
             for advantage in model['advantages'][:2]:
                 result.append(f"  • {advantage}")
         
         if url:
             result.append("")
-            result.append(f"🔗 Más información: {url}")
+            result.append(f"Más información: {url}")
         
         return "\n".join(result)
         
