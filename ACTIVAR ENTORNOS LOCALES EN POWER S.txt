@@ -1,0 +1,5 @@
+ACTIVAR ENTORNOS LOCALES EN POWER SHEL:
+
+1-   Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+
+2-   .\.venv\Scripts\Activate.ps1
