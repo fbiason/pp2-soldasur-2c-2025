@@ -209,4 +209,4 @@ El sistema de clasificación de PEISA-SOLDASUR demuestra un **rendimiento robust
 El sistema está **preparado para producción** con capacidades de clasificación que satisfacen los requisitos funcionales y de rendimiento establecidos.
 
 ---
-*Análisis realizado: 4/Noviembre 2025*  
+*Análisis realizado: 04/Noviembre 2025*  
