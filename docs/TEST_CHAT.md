@@ -24,4 +24,4 @@ El único punto de mejora identificado es el tiempo de respuesta de aproximadame
 El sistema cumple con todos los objetivos funcionales establecidos. La unificación del chat con el sistema experto proporciona una herramienta robusta y completa para la asesoría en soldadura.
 
 ---
-*Última actualización: 4/Noviembre 2025*
+*Última actualización: 04/Noviembre 2025*
