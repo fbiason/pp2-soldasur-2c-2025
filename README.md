@@ -1,169 +1,157 @@
-# SoldaSur IA Chatbot  
+# SoldaSur IA Chatbot
 
-**Chatbot inteligente para asesoramiento en sistemas de calefacción**  
+Asistente para asesoramiento en calefacción (PEISA) que combina un sistema experto (IA simbólica por reglas) y un chatbot con RAG + LLM local (Ollama).
 
-Proyecto desarrollado en el marco de **Prácticas Profesionalizantes II – 2° Cuatrimestre 2025**, orientado al diseño de un asistente conversacional capaz de brindar soporte técnico y asesoramiento automatizado a clientes y operarios del sector calefacción.
+## Características
 
-## 🚀 Versiones Disponibles
+- Modo Chat (RAG + LLM): recomendaciones en lenguaje natural de productos PEISA, mencionando al menos un producto por nombre.
+- Modo Experto (reglas): cálculo guiado de potencia para piso radiante, radiadores y calderas con resultados explicables.
+- Catálogo actualizable por scraping del sitio de PEISA.
+- 100% local (Ollama); sin dependencias de APIs externas.
 
-### 🌐 Versión Standalone con Ollama (v2.0) - **RECOMENDADA**
-- ✅ **100% Local** - Sin dependencias de APIs externas
-- ✅ **Privacidad total** - Procesamiento en tu máquina
-- ✅ **Costo cero** - Sin gastos por uso
-- ✅ **Modelo:** Llama 3.2 (3B)
-- 📄 **[Ver documentación completa del chatbot](docs/CHATBOT_SOLDY.md)** ⭐
-- 📄 [Ver documentación técnica](docs/README_STANDALONE_OLLAMA.md)
+## Inicio rápido
 
-### 🔧 Versión Backend Python (v1.0)
-- Sistema híbrido con backend FastAPI
-- RAG + Sistema Experto
-- Requiere servidor Python + entorno virtual
-- 📄 [Ver documentación](docs/PASOS.md)
-
-**Instalación rápida:**
-```bash
-# 1. Crear entorno virtual
-python -m venv venv
-
-# 2. Activar (Windows)
-venv\Scripts\activate
-
-# 3. Instalar dependencias
-pip install -r requirements.txt
-
-# 4. Iniciar servidor
-python -m uvicorn app.main:app --reload
-```
-
----
-
-## Equipo 2 – PP2 SOLDASUR 2C 2025  
-
-**Integrantes:**
-
-Cussi Nicolás  Biason Franco  
-Bolaña Silvia  Luna Luciano
-
----
-
-### Metodología de Trabajo
-El equipo trabajará bajo una metodología **Àgil (Scrum)**, organizando el desarrollo en **3 sprints** principales.  
-Cada sprint incluirá:
-- **Planificación:** definición de tareas y objetivos.  
-- **Desarrollo:** ejecución y revisión del avance en Trello y GitHub.  
-- **Cierre:** retrospectiva y entrega de los resultados parciales.
-  
----
-
-**Links del proyecto:**  
-- 📁 [Google Drive](https://drive.google.com/drive/u/0/folders/1pU7Th3OKQLMJ6IEezuRPtt7Ufv3Yb6Xe)  
-- 📋 [Tablero de Trello](https://trello.com/b/MdxyBFuU/equipo-2-pp2-soldasur-2c-2025)  
-
----
-
-## 🏃 Inicio Rápido
-
-### Requisitos
-1. **Instalar Ollama:** https://ollama.ai
-2. **Descargar modelo:**
+Requisitos
+- Python 3.10+
+- Ollama instalado y corriendo: https://ollama.ai
+- Modelo LLM local:
    ```bash
    ollama pull llama3.2:3b
    ```
-3. **Activar en Ollama Settings:** "Expose Ollama to the network"
 
-### Ejecutar
+Instalación
 ```bash
-# Opción 1: Abrir directamente
-# Navegar a app/ y abrir soldasur2025.html
+# Crear y activar entorno (Windows)
+python -m venv venv
+venv\Scripts\activate
 
-# Opción 2: Con servidor local
-cd app
-python -m http.server 8000
-# Abrir: http://localhost:8000/soldasur2025.html
+# Dependencias
+pip install -r requirements.txt
 ```
 
-### Probar
-1. Hacer clic en el botón flotante de Soldy (esquina inferior derecha)
-2. Elegir una opción:
-   -  **Guíame en un cálculo** - Flujo estructurado
-   -  **Tengo una pregunta** - Chat libre con IA
-   -  **Buscar productos** - Catálogo PEISA
+Ejecución
+- Opción A (frontend estático):
+   ```bash
+   cd app
+   python -m http.server 8000
+   # Abrir http://localhost:8000/soldasur2025.html
+   ```
+- Opción B (backend FastAPI):
+   ```bash
+   python -m uvicorn app.main:app --reload
+   # Abrir http://localhost:8000/
+   ```
 
----
+## Arquitectura (resumen)
 
-## Objetivo del proyecto  
+- Front-end: `app/soldasur2025.html`, `app/soldasur.js`
+   - UI del widget con 3 entradas: Guíame (experto), Tengo una pregunta (chat), Buscar productos.
+- Sistema Experto: `app/modules/expertSystem/expert_engine.py` + `app/peisa_advisor_knowledge_base.json`
+   - Nodos de preguntas/cálculos/respuestas; funciones auxiliares de recomendación.
+- Chatbot RAG: `app/modules/chatbot/llm_wrapper.py`, `app/modules/chatbot/rag_engine_v2.py`
+   - Recuperación con FAISS + embeddings y generación con Ollama.
+- Scraping: `app/modules/scraping/product_scraper.py`
+   - Actualiza `data/products_catalog.json` (descripciones, ventajas, URL).
+- API/Orquestación: `app/main.py`, `app/orchestrator.py`
+   - Endpoints de conversación y clasificador de intención (híbrido listo para consolidar).
 
-Desarrollar un **chatbot basado en IA** que pueda:  
-- Responder consultas frecuentes sobre sistemas de calefacción.  
-- Brindar asistencia técnica personalizada.  
-- Sugerir soluciones o recomendaciones según el tipo de instalación o problema reportado. 
-- Integrarse con bases de conocimiento y flujos conversacionales adaptativos.  
+## Documentación
 
---
+- Glosario: `docs/GLOSARIO.md`
+- Chatbot: `docs/CHATBOT.md`
+- Sistema Experto: `docs/SISTEMA_EXPERTO.md`
+- Scraping: `docs/SCRAPING.md`
+- Manual para escalar: `docs/MANUAL_ESCALAMIENTO.md`
 
-## Estructura del proyecto  
-
+## Estructura del proyecto (completa)
 
 ```
-├── LICENSE
-├── Makefile
-├── README.md
-├── requirements.txt
-├── app/
-│   ├── app.py
-│   ├── main.py
-│   ├── models.py
-│   ├── orchestrator.py
-│   ├── soldasur2025.html
-│   ├── soldasur.js
-│   ├── soldasur.css
-│   ├── peisa_advisor_knowledge_base.json
-│   ├── img/
-│   ├── modules/
-│   │   ├── chatbot/
-│   │   │   ├── llm_wrapper.py
-│   │   │   ├── rag_engine_v2.py
-│   │   │   └── models/
-│   │   ├── expert_system/
-│   │   ├── expertSystem/
-│   │   │   ├── expert_engine.py
-│   │   │   ├── expertSystem.js
-│   │   │   ├── models.py
-│   │   │   └── product_loader.py
-│   │   └── scraping/
-│   │       ├── inspect_peisa.py
-│   │       └── product_scraper.py
-├── configs/
-│   └── params.yaml
-├── data/
-│   └── products_catalog.json
-├── docs/
-├── embeddings/
-│   └── products.faiss
-├── images/
-├── ingest/
-│   └── ingest.py
-├── models/
-├── notebooks/
-│   └── exploration.ipynb
-├── query/
-│   └── query.py
-├── scripts/
-│   └── test_embeddings.py
-├── tests/
+LICENSE
+Makefile
+README.md
+requirements.txt
+__pycache__/
+app/
+   app.py
+   ESTRUCTURA.txt
+   main.py
+   models.py
+   orchestrator.py
+   peisa_advisor_knowledge_base.json
+   soldasur.css
+   soldasur.js
+   soldasur.js.backup
+   soldasur2025.html
+   __pycache__/
+   img/
+   modules/
+      chatbot/
+         chatbot.js
+         llm_wrapper.py
+         rag_engine_v2.py
+         __pycache__/
+      expertSystem/
+         expert_engine.py
+         expertSystem.js
+         models.py
+         product_loader.py
+         README.md
+         __pycache__/
+      scraping/
+         inspect_peisa.py
+         product_scraper.py
+configs/
+   params.yaml
+data/
+   products_catalog.json
+embeddings/
+   products.faiss
+images/
+ingest/
+   ingest.py
+models/
+notebooks/
+   exploration.ipynb
+query/
+   query.py
+   __pycache__/
+scripts/
+   test_embeddings.py
+docs/
+   GLOSARIO.md
+   CHATBOT.md
+   SISTEMA_EXPERTO.md
+   SCRAPING.md
+   MANUAL_ESCALAMIENTO.md
 ```
 
-## Propuestas de Escalabilidad
+## Tareas comunes
 
-Para potenciar el crecimiento y la robustez del sistema SoldaSur, se proponen las siguientes estrategias de escalabilidad y optimización:
+- Actualizar catálogo por scraping:
+   ```bash
+   python app/modules/scraping/product_scraper.py
+   ```
+- Regenerar embeddings (opcional):
+   ```bash
+   python ingest/ingest.py data/processed/products_mock.csv
+   ```
+- Probar consulta RAG filtrada:
+   ```bash
+   python query/query.py "¿Tienen calderas de más de 17000 W?"
+   ```
 
-- **Velocidad de respuesdtas:** Optimizar la velocidad de respuestas del Chatbot. 
-- **Almacenamiento y análisis de datos de consultas:** Registrar las interacciones y consultas de los usuarios para su posterior análisis, permitiendo la implementación de campañas de email marketing, remarketing y segmentación avanzada de clientes.
-- **Autenticación y personalización:** Incorporar mecanismos de inicio de sesión para personalizar la experiencia de compra, ofrecer recomendaciones basadas en el historial y facilitar la gestión de usuarios.
-- **Asistente en el proceso de compra:** Integrar el chatbot con el flujo de checkout, guiando al usuario y mostrando imágenes, videos o tutoriales sobre el uso e instalación de productos.
-- **Base de datos dinámica de productos consultados:** Desarrollar una base de datos que registre los productos más consultados (inicialmente calderas y radiadores), sirviendo como fuente para optimizaciones, análisis de demanda y gestión de inventario.
-- **Sistema de feedback automático:** Permitir que los usuarios califiquen las respuestas del chatbot y del sistema experto, utilizando estos datos para mejorar los modelos y la base de conocimiento.
-- **Motor de recomendaciones avanzado:** Implementar algoritmos de machine learning para sugerir productos complementarios, promociones personalizadas y anticipar necesidades del cliente.
+## Troubleshooting
 
+- “No responde el chatbot”: verificar que Ollama esté activo en `http://127.0.0.1:11434` y el modelo descargado.
+- “Sin productos”: correr el scraper o validar `data/products_catalog.json`.
+- Respuestas largas: bajar `num_predict` o reforzar post-procesado en `llm_wrapper.py`.
 
----
+## Equipo 2 – PP2 SOLDASUR 2C 2025
+
+Integrantes: Cussi Nicolás · Biason Franco · Bolaña Silvia · Luna Luciano
+
+Metodología: Ágil (Scrum) con sprints, plan/desarrollo/cierre; gestión en Trello y GitHub.
+
+## Licencia
+
+Este proyecto se distribuye bajo los términos de la licencia incluida en `LICENSE`.
