@@ -137,8 +137,6 @@ pp2-soldasur-2c-2025/
 ├── ingest/
 │   └── ingest.py
 ├── models/
-├── notebooks/
-│   └── exploration.ipynb
 ├── query/
 │   ├── query.py
 │   └── __pycache__/
