@@ -1,15 +1,107 @@
-# Documentación del Sistema Experto (IA simbólica)
+# Documentación del Sistema Experto
 
 Esta guía documenta el flujo guiado por reglas para dimensionar calefacción (piso radiante, radiadores y calderas).
 
-## Archivos clave
+## ¿Qué es la KB (Knowledge Base)?
 
-- Base de conocimiento (KB): `app/peisa_advisor_knowledge_base.json`
-- Motor experto: `app/modules/expertSystem/expert_engine.py`
-- Cargador de productos: `app/modules/expertSystem/product_loader.py`
-- Modelos: `app/modules/expertSystem/models.py` (expone `RADIATOR_MODELS`)
-- Front-end (UX del flujo guiado): `app/modules/expertSystem/expertSystem.js`
-- Endpoints backend: `app/main.py` (`/start`, `/reply`) – versión server-side
+**KB** es la abreviatura de **Knowledge Base** (Base de Conocimiento).
+
+Es el archivo JSON que contiene **todo el conocimiento del sistema experto**: reglas de decisión, flujo de conversación, fórmulas de cálculo y lógica de negocio para asesorar en calefacción.
+
+**Archivo:** `app/peisa_advisor_knowledge_base.json`
+
+### ¿Qué contiene la KB?
+
+1. **Reglas de decisión**: Qué preguntar según las respuestas anteriores
+2. **Flujo de conversación**: Secuencia de nodos (preguntas → cálculos → respuestas)
+3. **Fórmulas y cálculos**: Expresiones matemáticas para dimensionar calefacción
+4. **Lógica de negocio**: Criterios para recomendar productos
+
+La KB es el "cerebro" del sistema experto. El motor (`expert_engine.py`) lee e interpreta esta KB para guiar al usuario paso a paso.
+
+## Archivos clave del Sistema Experto
+
+### 1. Base de Conocimiento (KB) + Reglas
+**Archivo:** `app/peisa_advisor_knowledge_base.json`
+
+- **Función**: Define el flujo, preguntas, cálculos y lógica del sistema experto
+- **Contenido**: Nodos con `id`, `tipo`, `pregunta`, `opciones`, `acciones`, `siguiente`
+- **Rol**: Es la fuente de conocimiento que el motor interpreta
+
+### 2. Motor de Inferencia
+**Archivo:** `app/modules/expertSystem/expert_engine.py`
+
+- **Función**: Ejecuta las reglas de la KB
+- **Clase principal**: `ExpertEngine`
+- **Métodos clave**:
+  - `process()`: Interpreta el nodo actual y avanza
+  - `_perform_calculation()`: Ejecuta cálculos con eval seguro
+  - `_replace_variables()`: Reemplaza variables en textos
+- **Rol**: Es el "motor" que lee la KB y la ejecuta
+
+### 3. Integración con Catálogo de Productos
+**Archivo:** `app/modules/expertSystem/product_loader.py`
+
+- **Función**: Carga productos y expone funciones de recomendación
+- **Fuente de datos**: `data/products_catalog.json` (o fallback a Excel/CSV)
+- **Funciones auxiliares disponibles en la KB**:
+  - `filter_radiators()`: Filtra radiadores por criterios
+  - `recommend_boiler()`: Recomienda calderas
+  - `recommend_floor_heating_kit()`: Recomienda kits de piso radiante
+  - `recommend_radiator_from_catalog()`: Busca radiadores específicos
+  - `recommend_towel_rack_from_catalog()`: Busca toalleros
+  - `format_radiator_recommendations()`: Formatea recomendaciones
+  - `load_product_catalog()`: Carga el catálogo completo
+- **Rol**: Conecta el sistema experto con el catálogo de productos PEISA
+
+### 4. Modelos de Productos (Auxiliar)
+**Archivo:** `app/modules/expertSystem/models.py`
+
+- **Función**: Expone `RADIATOR_MODELS` con datos técnicos
+- **Contenido**: Coeficientes, instalación, estilos, colores de radiadores
+- **Rol**: Proporciona datos técnicos para cálculos
+
+### 5. Front-end del Experto
+**Archivo:** `app/modules/expertSystem/expertSystem.js`
+
+- **Función**: Define la UX paso a paso del flujo guiado
+- **Contenido**: Mensajes, inputs numéricos, opciones, panel de contexto
+- **Rol**: Interfaz de usuario para el sistema experto
+
+### 6. Endpoints Backend
+**Archivo:** `app/main.py`
+
+- **Endpoints**:
+  - `POST /start`: Inicia conversación con `current_node = 'inicio'`
+  - `POST /reply`: Procesa `option_index` o `input_values` y devuelve el siguiente mensaje
+- **Rol**: API para versión server-side del sistema experto
+
+## Flujo de Componentes
+
+```
+┌─────────────────────────────────────────┐
+│  peisa_advisor_knowledge_base.json      │  ← BASE DE CONOCIMIENTO (KB)
+│  (Reglas, preguntas, cálculos)          │     ¿Qué preguntar y cómo calcular?
+└──────────────┬──────────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────────┐
+│  expert_engine.py                        │  ← MOTOR DE INFERENCIA
+│  (Interpreta y ejecuta la KB)           │     ¿Cómo ejecutar las reglas?
+└──────────────┬──────────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────────┐
+│  product_loader.py                       │  ← INTEGRACIÓN CON CATÁLOGO
+│  (Carga productos y funciones auxiliares)│     ¿Qué productos recomendar?
+└──────────────┬──────────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────────┐
+│  data/products_catalog.json              │  ← CATÁLOGO DE PRODUCTOS
+│  (Productos PEISA actualizados)         │     Datos de productos
+└─────────────────────────────────────────┘
+```
 
 ## Estructura de la KB (JSON)
 

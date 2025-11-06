@@ -464,22 +464,187 @@ Si los problemas persisten:
 
 ```
 pp2-soldasur-2c-2025/
-├── app/                     # Aplicación principal
-│   ├── soldasur2025.html   # Interfaz web
-│   ├── soldasur.js         # Lógica principal
-│   ├── main.py             # API FastAPI
-│   ├── modules/            # Módulos especializados
-│   │   ├── chatbot/        # Sistema RAG + LLM
-│   │   ├── expertSystem/   # Sistema experto
-│   │   └── scraping/       # Actualización de catálogo
-│   └── peisa_advisor_knowledge_base.json  # Reglas del experto
-├── data/                   # Datos del sistema
-│   └── products_catalog.json  # Catálogo de productos
-├── docs/                   # Documentación técnica
-├── embeddings/             # Índices de búsqueda
-├── requirements.txt        # Dependencias Python
-└── manual.md              # Este manual
+│
+├── 📄 README.md                          # Documentación principal del proyecto
+├── 📄 Manual_Usuario.md                  # Manual para usuarios finales
+├── 📄 requirements.txt                   # Dependencias Python
+├── 📄 LICENSE                            # Licencia del proyecto
+├── 📄 Makefile                           # Comandos automatizados
+├── 📄 .env                               # Variables de entorno
+│
+├── 📁 app/                               # ⭐ APLICACIÓN PRINCIPAL
+│   │
+│   ├── 🌐 soldasur2025.html             # Página web principal
+│   ├── 🎨 soldasur.css                  # Estilos CSS
+│   ├── ⚙️ soldasur.js                   # Lógica frontend principal
+│   │
+│   ├── 🔧 main.py                       # API FastAPI (endpoints)
+│   ├── 🔧 app.py                        # Configuración de la app
+│   ├── 🔧 orchestrator.py               # Orquestador híbrido (EXPERTO/RAG)
+│   ├── 🔧 models.py                     # Modelos de datos
+│   │
+│   ├── 📋 peisa_advisor_knowledge_base.json  # ⭐ BASE DE CONOCIMIENTO (KB)
+│   │
+│   ├── 📁 modules/                      # ⭐ MÓDULOS DEL SISTEMA
+│   │   │
+│   │   ├── 📁 chatbot/                  # 🤖 CHATBOT (RAG + LLM)
+│   │   │   ├── chatbot.js              # Frontend del chatbot
+│   │   │   ├── llm_wrapper.py          # Wrapper de Ollama
+│   │   │   └── rag_engine_v2.py        # Motor RAG (FAISS + Embeddings)
+│   │   │
+│   │   ├── 📁 expertSystem/             # 🧠 SISTEMA EXPERTO
+│   │   │   ├── expertSystem.js         # Frontend del experto
+│   │   │   ├── expert_engine.py        # Motor de inferencia
+│   │   │   ├── product_loader.py       # Cargador de productos
+│   │   │   └── models.py               # Modelos de radiadores
+│   │   │
+│   │   └── 📁 scraping/                 # 🕷️ WEB SCRAPING
+│   │       ├── product_scraper.py      # Scraper de PEISA
+│   │       └── inspect_peisa.py        # Inspector de HTML
+│   │
+│   └── 📁 img/                          # Imágenes de la app
+│       └── soldy_head.png              # Favicon (Soldy)
+│
+├── 📁 data/                              # 💾 DATOS
+│   └── products_catalog.json           # ⭐ CATÁLOGO DE PRODUCTOS
+│
+├── 📁 embeddings/                        # 🔢 VECTORES
+│   └── products.faiss                   # Índice FAISS (búsqueda semántica)
+│
+├── 📁 ingest/                            # 📥 INGESTA DE DATOS
+│   └── ingest.py                        # Script de ingesta (CSV → FAISS)
+│
+├── 📁 query/                             # 🔍 CONSULTAS
+│   └── query.py                         # Script de consulta RAG
+│
+├── 📁 scripts/                           # 🛠️ SCRIPTS AUXILIARES
+│   └── test_embeddings.py               # Test de embeddings
+│
+├── 📁 docs/                              # 📚 DOCUMENTACIÓN TÉCNICA
+│   ├── GLOSARIO.md                      # Términos técnicos
+│   ├── CHATBOT.md                       # Guía del chatbot
+│   ├── SISTEMA_EXPERTO.md               # Guía del sistema experto
+│   ├── SCRAPING.md                      # Guía de scraping
+│   └── MANUAL_ESCALAMIENTO.md           # Manual para escalar
+│
+├── 📁 images/                            # 🖼️ IMÁGENES GENERALES
+│   ├── logo_white.png                   # Logo SOLDASUR
+│   ├── welcome.webp                     # Imagen de bienvenida
+│   └── soldy_head.png                   # Avatar de Soldy
+│
+├── 📁 configs/                           # ⚙️ CONFIGURACIONES
+│   └── params.yaml                      # Parámetros del sistema
+│
+└── 📁 tests/                             # 🧪 TESTS
 ```
+
+#### 🔍 Explicación por Componentes
+
+**🌐 Frontend (Interfaz de Usuario)**
+```
+app/
+├── soldasur2025.html    → Página web principal
+├── soldasur.css         → Estilos visuales
+└── soldasur.js          → Lógica de navegación y UI
+```
+Interfaz web que el usuario ve. Tiene 3 puntos de entrada: Guíame (experto), Pregunta (chat), Buscar productos.
+
+**🤖 Chatbot (RAG + LLM)**
+```
+app/modules/chatbot/
+├── chatbot.js           → Frontend del chat (memoria, filtrado)
+├── llm_wrapper.py       → Conexión con Ollama (LLM local)
+└── rag_engine_v2.py     → Búsqueda semántica (FAISS + embeddings)
+```
+Conversación libre en lenguaje natural. Busca productos similares y genera respuestas con Ollama.
+
+**🧠 Sistema Experto (IA Simbólica)**
+```
+app/modules/expertSystem/
+├── expertSystem.js          → Frontend del flujo guiado
+├── expert_engine.py         → Motor de inferencia (ejecuta reglas)
+├── product_loader.py        → Carga catálogo y funciones auxiliares
+└── models.py                → Datos técnicos de radiadores
+
+app/peisa_advisor_knowledge_base.json  → BASE DE CONOCIMIENTO (reglas)
+```
+Flujo guiado paso a paso con preguntas y cálculos. Dimensiona calefacción según reglas técnicas.
+
+**🔗 Orquestador Híbrido**
+```
+app/orchestrator.py      → Clasifica intención y enruta (EXPERTO/RAG/HÍBRIDO)
+```
+Decide qué sistema usar según la consulta del usuario. Unifica ambos enfoques.
+
+**🕷️ Scraping**
+```
+app/modules/scraping/
+├── product_scraper.py   → Extrae productos de peisa.com.ar
+└── inspect_peisa.py     → Inspecciona estructura HTML
+```
+Actualiza automáticamente el catálogo desde la web de PEISA.
+
+**💾 Datos**
+```
+data/
+└── products_catalog.json    → CATÁLOGO UNIFICADO (usado por experto y chatbot)
+
+embeddings/
+└── products.faiss           → Índice vectorial para búsqueda semántica
+```
+Fuente única de verdad para productos. Ambos sistemas lo consumen.
+
+#### 🔄 Flujo de Datos Simplificado
+
+```
+┌─────────────┐
+│   USUARIO   │
+└──────┬──────┘
+       │
+       ▼
+┌─────────────────────────────────┐
+│  FRONTEND (soldasur2025.html)   │
+│  • Guíame (Experto)             │
+│  • Pregunta (Chat)              │
+│  • Buscar productos             │
+└──────┬──────────────────────────┘
+       │
+       ▼
+┌─────────────────────────────────┐
+│  ORQUESTADOR (orchestrator.py)  │
+│  Clasifica intención            │
+└──────┬──────────────────────────┘
+       │
+       ├─────────────┬─────────────┐
+       ▼             ▼             ▼
+┌─────────────┐ ┌─────────┐ ┌──────────┐
+│   EXPERTO   │ │   RAG   │ │ HÍBRIDO  │
+│   (Reglas)  │ │  (LLM)  │ │  (Ambos) │
+└──────┬──────┘ └────┬────┘ └─────┬────┘
+       │             │            │
+       └─────────────┴────────────┘
+                     │
+                     ▼
+       ┌─────────────────────────┐
+       │  CATÁLOGO DE PRODUCTOS  │
+       │  (products_catalog.json)│
+       └─────────────────────────┘
+```
+
+#### 📊 Archivos Clave
+
+| Archivo | Función | Tipo |
+|---------|---------|------|
+| `peisa_advisor_knowledge_base.json` | Base de conocimiento (reglas) | KB |
+| `expert_engine.py` | Motor de inferencia | Backend |
+| `llm_wrapper.py` | Conexión con Ollama | Backend |
+| `rag_engine_v2.py` | Búsqueda semántica | Backend |
+| `orchestrator.py` | Clasificador de intención | Backend |
+| `product_scraper.py` | Scraping de PEISA | Script |
+| `products_catalog.json` | Catálogo unificado | Datos |
+| `soldasur2025.html` | Interfaz web | Frontend |
+| `chatbot.js` | Lógica del chat | Frontend |
+| `expertSystem.js` | Lógica del experto | Frontend |
 
 ### Versiones y Actualizaciones
 
