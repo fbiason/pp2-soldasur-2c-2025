@@ -12,6 +12,7 @@ function startExpertSystem() {
     conversationStep = 0;
     userInputs = {};
     contextData = {};
+    lastRecommendedProduct = null; // Resetear producto recomendado
     updateContextPanel();
     
     appendMessage('system', '¡Perfecto! Te guiaré paso a paso para calcular tu sistema de calefacción.');
@@ -309,6 +310,9 @@ function showRecommendedProducts(tipo) {
     console.log('✅ Producto seleccionado:', recommendedProduct?.model || 'Ninguno');
     
     if (recommendedProduct) {
+        // Guardar producto recomendado para contexto del chatbot
+        lastRecommendedProduct = recommendedProduct;
+        console.log('💾 Producto guardado para contexto:', lastRecommendedProduct.model);
         renderProducts([recommendedProduct]);
     } else {
         console.error('❌ No se encontraron productos para recomendar');
@@ -469,6 +473,9 @@ function showRecommendedProductsForRadiators(cargaTermica, objetivo, instalacion
     console.log('✅ Radiador seleccionado:', recommendedProduct?.model || 'Ninguno');
     
     if (recommendedProduct) {
+        // Guardar producto recomendado para contexto del chatbot
+        lastRecommendedProduct = recommendedProduct;
+        console.log('💾 Producto guardado para contexto:', lastRecommendedProduct.model);
         renderProducts([recommendedProduct]);
     } else {
         console.error('❌ No se encontraron radiadores para recomendar');
@@ -540,6 +547,9 @@ function showRecommendedProductsForBoilers(potenciaRequerida, necesitaACS) {
     console.log('✅ Caldera seleccionada:', recommendedProduct?.model || 'Ninguna');
     
     if (recommendedProduct) {
+        // Guardar producto recomendado para contexto del chatbot
+        lastRecommendedProduct = recommendedProduct;
+        console.log('💾 Producto guardado para contexto:', lastRecommendedProduct.model);
         renderProducts([recommendedProduct]);
     } else {
         console.error('❌ No se encontraron calderas para recomendar');
@@ -563,6 +573,9 @@ function showTowelRackRecommendation() {
     if (toalleros.length > 0) {
         // Priorizar Domino S (eléctrico, fácil instalación)
         const recommendedTowelRack = toalleros.find(p => p.model.includes('Domino S')) || toalleros[0];
+        // Guardar producto recomendado para contexto del chatbot
+        lastRecommendedProduct = recommendedTowelRack;
+        console.log('💾 Producto guardado para contexto:', lastRecommendedProduct.model);
         renderProducts([recommendedTowelRack]);
     } else {
         console.error(' No se encontraron toalleros en el catálogo');
@@ -700,6 +713,7 @@ function resetExpertSystem() {
     conversationStep = 0;
     userInputs = {};
     contextData = {};
+    lastRecommendedProduct = null; // Resetear producto recomendado
     updateContextPanel();
 }
 

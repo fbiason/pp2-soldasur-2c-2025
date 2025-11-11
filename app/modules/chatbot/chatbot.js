@@ -6,6 +6,7 @@ const MAX_HISTORY_LENGTH = 10; // Mantener últimos 10 mensajes para no saturar 
 let conversationContext = ''; // Resumen del contexto de la conversación
 let waitingForCity = false; // Estado para saber si estamos esperando que el usuario elija ciudad
 let selectedProductForConsult = null; // Producto elegido para consulta comercial
+let lastRecommendedProduct = null; // Último producto recomendado por el sistema experto
 let peisaProductsFromJSON = []; // Catálogo cargado desde JSON
 
 /* Cargar catálogo desde JSON */
@@ -309,8 +310,22 @@ async function callOllama(userMessage) {
         return 'Disculpá, estoy teniendo problemas para acceder al catálogo. Por favor, recargá la página.';
     }
     
-    // FILTRAR productos relevantes según la consulta (en lugar de pasar todo el catálogo)
-    const relevantProducts = filterRelevantProducts(userMessage, catalogToUse);
+    // Si hay un producto recomendado por el sistema experto, priorizarlo
+    let relevantProducts = [];
+    if (lastRecommendedProduct) {
+        console.log(`💾 Producto del sistema experto: ${lastRecommendedProduct.model}`);
+        // Agregar el producto recomendado primero
+        relevantProducts.push(lastRecommendedProduct);
+        // Agregar productos similares (misma familia)
+        const similarProducts = catalogToUse.filter(p => 
+            p.family === lastRecommendedProduct.family && 
+            p.model !== lastRecommendedProduct.model
+        ).slice(0, 2);
+        relevantProducts.push(...similarProducts);
+    } else {
+        // Si no hay producto del sistema experto, filtrar normalmente
+        relevantProducts = filterRelevantProducts(userMessage, catalogToUse);
+    }
     console.log(`🎯 Productos relevantes para "${userMessage}": ${relevantProducts.map(p => p.model).join(', ')}`);
     
     // Crear versión simplificada de los productos RELEVANTES
@@ -416,6 +431,11 @@ IMPORTANTE:
 ✗ NO hables de cosas fuera del catálogo
 ✗ NO uses HTML (target, class, etc.) - solo texto natural`;
 
+    // Agregar contexto del producto recomendado por el sistema experto
+    if (lastRecommendedProduct) {
+        systemPrompt += `\n\n📌 PRODUCTO RECOMENDADO POR EL SISTEMA EXPERTO:\nEl usuario acaba de recibir una recomendación del sistema experto: ${lastRecommendedProduct.model}.\n\nIMPORTANTE: Si el usuario pregunta sobre "ese producto", "sus ventajas", "características", etc., DEBE referirse a ${lastRecommendedProduct.model}.\n\nEjemplo:\nUsuario: "¿Qué ventajas tiene ese producto?"\n✅ Soldy: "El ${lastRecommendedProduct.model} tiene estas ventajas: [listar ventajas del producto]"\n❌ Soldy: "Te recomiendo el [OTRO PRODUCTO]..." (NO CAMBIES DE PRODUCTO)`;
+    }
+    
     // Agregar contexto de conversación previa si existe
     if (conversationContext) {
         systemPrompt += `\n\nCONTEXTO IMPORTANTE DE LA CONVERSACIÓN PREVIA:\n${conversationContext}\n\nUSA este contexto para dar respuestas coherentes y personalizadas. Si el usuario ya mencionó su situación (ej: casa grande, familia), adaptá tu recomendación a eso.`;
