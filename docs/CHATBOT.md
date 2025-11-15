@@ -83,9 +83,8 @@ Payload típico (Ollama /api/chat):
 - Abrir la UI:
   - Opción 1 (estático):
     ```bash
-    cd app
     python -m http.server 8000
-    # http://localhost:8000/soldasur2025.html
+    # http://localhost:8000/
     ```
   - Opción 2 (backend):
     ```bash

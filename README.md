@@ -58,9 +58,8 @@ pip install -r requirements.txt
 Ejecución
 - Opción A (frontend estático):
    ```bash
-   cd app
    python -m http.server 8000
-   # Abrir http://localhost:8000/soldasur2025.html
+   # Abrir http://localhost:8000/
    ```
 - Opción B (backend FastAPI):
    ```bash
@@ -70,7 +69,7 @@ Ejecución
 
 ## Arquitectura (resumen)
 
-- Front-end: `app/soldasur2025.html`, `app/soldasur.js`
+- Front-end: `index.html`, `soldasur.js`, `soldasur.css`
    - UI del widget con 3 entradas: Guíame (experto), Tengo una pregunta (chat), Buscar productos.
 - Sistema Experto: `app/modules/expertSystem/expert_engine.py` + `app/peisa_advisor_knowledge_base.json`
    - Nodos de preguntas/cálculos/respuestas; funciones auxiliares de recomendación.
@@ -97,7 +96,11 @@ pp2-soldasur-2c-2025/
 ├── Makefile
 ├── README.md
 ├── requirements.txt
+├── index.html
+├── soldasur.css
+├── soldasur.js
 ├── __pycache__/
+├── images/
 ├── app/
 │   ├── app.py
 │   ├── ESTRUCTURA.txt
@@ -105,10 +108,7 @@ pp2-soldasur-2c-2025/
 │   ├── models.py
 │   ├── orchestrator.py
 │   ├── peisa_advisor_knowledge_base.json
-│   ├── soldasur.css
-│   ├── soldasur.js
 │   ├── soldasur.js.backup
-│   ├── soldasur2025.html
 │   ├── __pycache__/
 │   ├── img/
 │   └── modules/
@@ -183,7 +183,7 @@ pp2-soldasur-2c-2025/
 
 ## Endpoints (FastAPI)
 
-- GET `/` → sirve `app/soldasur2025.html`.
+- GET `/` → sirve `index.html`.
 - POST `/start` → inicia una conversación del experto (estado por `conversation_id`).
 - POST `/reply` → procesa una opción/entrada y devuelve el siguiente mensaje.
 - GET `/ask?question=...` → ejemplo simple de RAG.

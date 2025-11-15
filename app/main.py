@@ -58,10 +58,10 @@ conversations = {}
 async def home():
     """Sirve la página principal del chat"""
     try:
-        with open("app/soldasur2025.html", "r", encoding="utf-8") as f:
+        with open("index.html", "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Archivo soldasur2025.html no encontrado")
+        raise HTTPException(status_code=404, detail="Archivo index.html no encontrado")
 
 @app.post("/start", response_model=ConversationResponse)
 async def start_conversation(request: StartConversationRequest):

@@ -4,7 +4,7 @@ Guía práctica para que un nuevo equipo pueda mantener, extender y escalar el s
 
 ## 1) Arquitectura (visión)
 
-- Front-end: `app/soldasur2025.html`, `app/soldasur.js` + módulos `modules/chatbot` y `modules/expertSystem`.
+- Front-end: `index.html`, `soldasur.js`, `soldasur.css` + módulos `app/modules/chatbot` y `app/modules/expertSystem`.
 - Sistema experto (IA simbólica): `expert_engine.py` + KB JSON, con funciones auxiliares para cálculos y recomendaciones.
 - Chatbot (RAG + LLM): `rag_engine_v2.py` + `llm_wrapper.py` + catálogo JSON y/o embeddings FAISS.
 - API (FastAPI): `app/main.py` (endpoints de conversación y demo RAG) y `app/orchestrator.py` (modo híbrido e intenciones, listo para consolidar servidor-side).
@@ -16,7 +16,7 @@ Guía práctica para que un nuevo equipo pueda mantener, extender y escalar el s
   - `pip install -r requirements.txt`
   - Ollama instalado y corriendo; descargar modelo `ollama pull llama3.2:3b`
 - Ejecutar
-  - Front-end estático: `cd app && python -m http.server 8000` → `http://localhost:8000/soldasur2025.html`
+  - Front-end estático: `python -m http.server 8000` → `http://localhost:8000/`
   - Backend FastAPI: `python -m uvicorn app.main:app --reload` → `http://localhost:8000/`
 
 ## 3) Datos y catálogo
