@@ -517,6 +517,27 @@ body {
         
         /* Responsive */
         @media (max-width: 640px) {
+            /* Ajuste del título hero para mobile */
+            .hero-section h1 {
+                font-size: 2.5rem !important; /* text-4xl en lugar de text-6xl */
+                line-height: 1.2 !important;
+                margin-bottom: 1.5rem !important;
+            }
+            
+            .hero-section .text-cyan-300 {
+                font-size: 3rem !important; /* Ligeramente más grande para destacar */
+            }
+            
+            .hero-section p {
+                font-size: 1rem !important; /* text-base en lugar de text-xl */
+                padding: 0 1rem;
+            }
+            
+            .hero-section img {
+                height: 5rem !important; /* h-20 - logo más pequeño */
+                margin-bottom: 1.5rem !important;
+            }
+            
             .chat-container-wrapper {
                 width: calc(100vw - 32px);
                 height: calc(100vh - 120px);
@@ -527,8 +548,13 @@ body {
             .chat-container-wrapper.maximized {
                 top: 10px;
                 right: 10px;
-                bottom: 110px;  /* Espacio para la cabeza de Soldy en móviles (80px + margen) */
-                left: 50%;  /* Ocupa solo la mitad derecha en móviles también */
+                bottom: 110px;
+                left: 50%;
+            }
+            
+            /* Ocultar botón de maximizar en mobile */
+            #maximize-button {
+                display: none !important;
             }
             
             .chat-button {
@@ -560,9 +586,34 @@ body {
                 font-size: 12px;
             }
 
-            /* Ajuste tamaño de mini Soldys en móviles */
+            /* Ajuste tamaño y posición de mini Soldys en móviles */
             .mini-soldy {
-                width: 90px;
-                height: 90px;
+                width: 70px;
+                height: 70px;
+            }
+            
+            /* Reposicionar mini-soldys para mejor visibilidad en mobile */
+            .mini-soldy-1 {
+                bottom: 15%;
+                left: 5%;
+            }
+            
+            .mini-soldy-2 {
+                top: 10%;
+                left: auto;
+                right: 5%;
+                bottom: auto;
+            }
+            
+            .mini-soldy-3 {
+                top: 10%;
+                left: 5%;
+                right: auto;
+                bottom: auto;
+            }
+            
+            .mini-soldy-4 {
+                bottom: 15%;
+                right: 5%;
             }
         }
