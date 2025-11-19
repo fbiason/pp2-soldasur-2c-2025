@@ -154,7 +154,7 @@ python ingest/ingest.py data/processed/products_mock.csv
 cd app
 python -m http.server 8000
 ```
-Luego abrir: `http://localhost:8000/soldasur2025.html`
+Luego abrir: `http://localhost:8000/index.html`
 
 **Opción B: Con API Backend**
 ```bash
@@ -474,7 +474,7 @@ pp2-soldasur-2c-2025/
 │
 ├── 📁 app/                               # ⭐ APLICACIÓN PRINCIPAL
 │   │
-│   ├── 🌐 soldasur2025.html             # Página web principal
+│   ├── 🌐 index.html                   # Página web principal
 │   ├── 🎨 soldasur.css                  # Estilos CSS
 │   ├── ⚙️ soldasur.js                   # Lógica frontend principal
 │   │
@@ -543,7 +543,7 @@ pp2-soldasur-2c-2025/
 **🌐 Frontend (Interfaz de Usuario)**
 ```
 app/
-├── soldasur2025.html    → Página web principal
+├── index.html    → Página web principal
 ├── soldasur.css         → Estilos visuales
 └── soldasur.js          → Lógica de navegación y UI
 ```
@@ -603,7 +603,7 @@ Fuente única de verdad para productos. Ambos sistemas lo consumen.
        │
        ▼
 ┌─────────────────────────────────┐
-│  FRONTEND (soldasur2025.html)   │
+│  FRONTEND (index.html)          │
 │  • Guíame (Experto)             │
 │  • Pregunta (Chat)              │
 │  • Buscar productos             │
@@ -642,7 +642,7 @@ Fuente única de verdad para productos. Ambos sistemas lo consumen.
 | `orchestrator.py` | Clasificador de intención | Backend |
 | `product_scraper.py` | Scraping de PEISA | Script |
 | `products_catalog.json` | Catálogo unificado | Datos |
-| `soldasur2025.html` | Interfaz web | Frontend |
+| `index.html` | Interfaz web | Frontend |
 | `chatbot.js` | Lógica del chat | Frontend |
 | `expertSystem.js` | Lógica del experto | Frontend |
 

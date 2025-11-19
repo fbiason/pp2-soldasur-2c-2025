@@ -12,7 +12,7 @@ let peisaProductsFromJSON = []; // Catálogo cargado desde JSON
 /* Cargar catálogo desde JSON */
 async function loadProductCatalog() {
     try {
-        // Ruta relativa desde app/soldasur2025.html hacia data/products_catalog.json
+        // Ruta relativa desde app/index.html hacia data/products_catalog.json
         const response = await fetch('../data/products_catalog.json');
         if (!response.ok) throw new Error('Error cargando catálogo');
         peisaProductsFromJSON = await response.json();
